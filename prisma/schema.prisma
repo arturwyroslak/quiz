@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  PARTNER
+  COMPANY
+  TEAM_MEMBER
+  ADMIN
+}
+
+enum LeadStatus {
+  PENDING
+  CONTACTED
+  CONVERTED
+  REJECTED
+}
+
+enum TeamMemberStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id                    String      @id @default(cuid())
+  email                 String      @unique
+  name                  String?
+  password              String
+  accountType           AccountType @default(PARTNER)
+  isVerified            Boolean     @default(false)
+  isActive              Boolean     @default(true)
+  verificationToken     String?     @unique
+  resetPasswordToken    String?     @unique
+  resetPasswordExpires  DateTime?
+  referralCode          String?     @unique
+  referredById          String?     // ID użytkownika, który polecił tego użytkownika
+  nip                   String?
+  regon                 String?
+  phone                 String?
+  address               String?
+  companyName           String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  // Relations
+  leads                 Lead[]      @relation("PartnerLeads")
+  teamMembers           TeamMember[] @relation("CompanyTeamMembers")
+  reports               Report[]
+  notifications         UserNotification?
+  referredBy            User?       @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals             User[]      @relation("UserReferrals")
+
+  @@map("users")
+}
+
+model Lead {
+  id                    String      @id @default(cuid())
+  firstName             String
+  lastName              String
+  email                 String
+  phone                 String?
+  address               String?
+  preferences           String?
+  status                LeadStatus  @default(PENDING)
+  estimatedValue        Float?
+  consentContact        Boolean     @default(false)
+  consentPromoMaterials Boolean     @default(false)
+  partnerId             String
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  // Relations
+  partner               User        @relation("PartnerLeads", fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("leads")
+}
+
+model TeamMember {
+  id          String            @id @default(cuid())
+  name        String
+  email       String            @unique
+  phone       String?
+  position    String?
+  status      TeamMemberStatus  @default(ACTIVE)
+  companyId   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  company     User              @relation("CompanyTeamMembers", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("team_members")
+}
+
+model Report {
+  id          String    @id @default(cuid())
+  title       String
+  type        String
+  data        Json
+  generatedBy String
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  user        User      @relation(fields: [generatedBy], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+model UserNotification {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  emailNewLeads         Boolean  @default(true)
+  emailLeadUpdates      Boolean  @default(true)
+  emailUserProgram      Boolean  @default(true)
+  emailMarketing        Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notifications")
+}

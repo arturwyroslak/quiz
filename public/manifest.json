@@ -1,0 +1,24 @@
+{
+  "short_name": "ARTSCORE",
+  "name": "ARTSCORE Partner Program",
+  "description": "Aplikacja partnerska ARTSCORE do zarządzania leadami i zespołem.",
+  "icons": [
+    {
+      "src": "/images/arts-logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/arts-logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/partner-program/login",
+  "display": "standalone",
+  "theme_color": "#D4AF37",
+  "background_color": "#ffffff",
+  "screenshots": []
+}
