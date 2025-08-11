@@ -163,6 +163,7 @@ model QuizSession {
   answers     Answer[]
   styleScores StyleScore[]
   rooms       QuizSessionRoom[]
+  comments    Comment[]
 
   @@map("quiz_sessions")
 }
@@ -173,6 +174,7 @@ model Question {
   type      String // e.g., 'single-choice', 'multiple-choice', 'slider'
   options   Json?
   quizId    String
+  branchingLogic Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -210,9 +212,23 @@ model StyleImage {
   url     String
   styleId String
 
-  style Style @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  style    Style     @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  comments Comment[]
 
   @@map("style_images")
+}
+
+model Comment {
+  id           String   @id @default(cuid())
+  text         String
+  sessionId    String
+  styleImageId String
+  createdAt    DateTime @default(now())
+
+  session    QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  styleImage StyleImage  @relation(fields: [styleImageId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
 }
 
 model StyleScore {

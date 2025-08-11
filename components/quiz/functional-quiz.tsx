@@ -9,14 +9,19 @@ interface FunctionalQuizProps {
 
 export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
   const [questions, setQuestions] = useState<Question[]>([])
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [sessionId, setSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/quiz/questions?quizId=${quizId}`)
         .then(res => res.json())
-        .then(setQuestions)
+        .then(data => {
+            setQuestions(data);
+            // Find the first question that is not a follow-up
+            const firstQuestion = data.find((q: any) => !q.id.includes('_followup'));
+            setCurrentQuestion(firstQuestion || null);
+        })
 
     fetch('/api/quiz/session', {
         method: 'POST',
@@ -28,7 +33,9 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
   }, [quizId])
 
   const handleAnswer = (answer: any) => {
-    const questionId = questions[currentQuestionIndex].id
+    if (!currentQuestion) return;
+
+    const questionId = currentQuestion.id
     const newAnswers = { ...answers, [questionId]: answer }
     setAnswers(newAnswers)
 
@@ -40,10 +47,26 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
         })
     }
 
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1)
+    // Branching logic
+    let nextQuestionId: string | null = null;
+    if (currentQuestion.branchingLogic && (currentQuestion.branchingLogic as any)[answer]) {
+        nextQuestionId = (currentQuestion.branchingLogic as any)[answer];
+    }
+
+    if (nextQuestionId) {
+        const nextQuestion = questions.find(q => q.id === nextQuestionId);
+        setCurrentQuestion(nextQuestion || null);
     } else {
-      setCurrentQuestionIndex(prev => prev + 1)
+        // Find next question in the main flow
+        const currentIndex = questions.findIndex(q => q.id === currentQuestion.id);
+        let nextQuestion = null;
+        for (let i = currentIndex + 1; i < questions.length; i++) {
+            if (!questions[i].id.includes('_followup')) {
+                nextQuestion = questions[i];
+                break;
+            }
+        }
+        setCurrentQuestion(nextQuestion);
     }
   }
 
@@ -51,7 +74,7 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
       return <div>Ładowanie pytań...</div>
   }
 
-  if (currentQuestionIndex >= questions.length) {
+  if (!currentQuestion) {
     return (
       <div>
         <h2 className="text-2xl font-bold mb-4">Quiz zakończony!</h2>
@@ -62,7 +85,7 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
 
   return (
     <QuestionComponent
-      question={questions[currentQuestionIndex]}
+      question={currentQuestion}
       onAnswer={handleAnswer}
     />
   )

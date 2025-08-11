@@ -319,14 +319,16 @@ async function main() {
   console.log('✅ Utworzono dwa quizy: Quiz Stylu i Quiz Funkcjonalny.');
 
   // Pytania do Quizu Funkcjonalnego
+  const q1 = { id: 'clerk_q1', quizId: functionalQuiz.id, text: 'Ile osób mieszka w twoim domu?', type: 'single-choice', options: { choices: ['1 osoba', '2 osoby', '3-4 osoby', '5 i więcej'] } };
+  const q2 = { id: 'clerk_q2', quizId: functionalQuiz.id, text: 'W jakim wieku są osoby w domu?', type: 'multiple-choice', options: { choices: ['Niemowlęta (0-2 lata)', 'Małe dzieci (3-10 lat)', 'Nastolatki (11-17 lat)', 'Dorośli (18-64 lata)', 'Seniorzy (65+)'] } };
+  const q3 = { id: 'clerk_q3', quizId: functionalQuiz.id, text: 'Jak ważne jest miejsce do relaksu?', type: 'slider', options: { min: 1, max: 5, step: 1 } };
+  const q4 = { id: 'clerk_q4', quizId: functionalQuiz.id, text: 'Czy ktoś w domu ma ograniczenia ruchowe?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q4_followup' } };
+  const q4_followup = { id: 'clerk_q4_followup', quizId: functionalQuiz.id, text: 'Dla ilu osób i w jakich pomieszczeniach?', type: 'text' };
+  const q5 = { id: 'clerk_q5', quizId: functionalQuiz.id, text: 'Czy pracujesz lub uczysz się zdalnie?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q5_followup' } };
+  const q5_followup = { id: 'clerk_q5_followup', quizId: functionalQuiz.id, text: 'Ile godzin dziennie średnio?', type: 'single-choice', options: { choices: ['0-2h', '2-4h', '4-8h', '>8h'] } };
+
   await prisma.question.createMany({
-    data: [
-      { quizId: functionalQuiz.id, text: 'Ile osób mieszka w twoim domu?', type: 'single-choice', options: { choices: ['1 osoba', '2 osoby', '3-4 osoby', '5 i więcej'] } },
-      { quizId: functionalQuiz.id, text: 'W jakim wieku są osoby w domu?', type: 'multiple-choice', options: { choices: ['Niemowlęta (0-2 lata)', 'Małe dzieci (3-10 lat)', 'Nastolatki (11-17 lat)', 'Dorośli (18-64 lata)', 'Seniorzy (65+)'] } },
-      { quizId: functionalQuiz.id, text: 'Jak ważne jest miejsce do relaksu?', type: 'slider', options: { min: 1, max: 5, step: 1 } },
-      { quizId: functionalQuiz.id, text: 'Czy ktoś w domu ma ograniczenia ruchowe?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] } },
-      { quizId: functionalQuiz.id, text: 'Czy pracujesz lub uczysz się zdalnie?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] } },
-    ]
+    data: [q1, q2, q3, q4, q4_followup, q5, q5_followup]
   });
 
   console.log('✅ Dodano pytania do Quizu Funkcjonalnego.');
