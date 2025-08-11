@@ -57,6 +57,7 @@ model User {
   notifications         UserNotification?
   referredBy            User?       @relation("UserReferrals", fields: [referredById], references: [id])
   referrals             User[]      @relation("UserReferrals")
+  quizSessions          QuizSession[]
 
   @@map("users")
 }
@@ -128,4 +129,121 @@ model UserNotification {
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_notifications")
+}
+
+enum QuizType {
+  STYLE
+  FUNCTIONAL
+}
+
+model Quiz {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        QuizType
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  questions   Question[]
+  sessions    QuizSession[]
+
+  @@map("quizzes")
+}
+
+model QuizSession {
+  id          String    @id @default(cuid())
+  userId      String?
+  quizId      String
+  isCompleted Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id])
+  answers     Answer[]
+  styleScores StyleScore[]
+  rooms       QuizSessionRoom[]
+
+  @@map("quiz_sessions")
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  text      String
+  type      String // e.g., 'single-choice', 'multiple-choice', 'slider'
+  options   Json?
+  quizId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers   Answer[]
+
+  @@map("questions")
+}
+
+model Answer {
+  id          String   @id @default(cuid())
+  sessionId   String
+  questionId  String
+  value       Json
+  createdAt   DateTime @default(now())
+
+  session   QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question  Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("answers")
+}
+
+model Style {
+  id    String @id @default(cuid())
+  name  String @unique
+
+  images StyleImage[]
+  scores StyleScore[]
+
+  @@map("styles")
+}
+
+model StyleImage {
+  id      String @id @default(cuid())
+  url     String
+  styleId String
+
+  style Style @relation(fields: [styleId], references: [id], onDelete: Cascade)
+
+  @@map("style_images")
+}
+
+model StyleScore {
+  id        String @id @default(cuid())
+  sessionId String
+  styleId   String
+  score     Int
+
+  session QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  style   Style       @relation(fields: [styleId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, styleId])
+  @@map("style_scores")
+}
+
+model Room {
+  id   String @id @default(cuid())
+  name String @unique
+
+  quizSessions QuizSessionRoom[]
+
+  @@map("rooms")
+}
+
+model QuizSessionRoom {
+  id        String @id @default(cuid())
+  sessionId String
+  roomId    String
+
+  session QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  room    Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_session_rooms")
 }
