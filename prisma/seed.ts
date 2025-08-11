@@ -296,6 +296,105 @@ async function main() {
   console.log('   - partner@artscore.pro (Partner - osoba fizyczna)');
   console.log('   - company@artscore.pro (Partner - firma)');
   console.log('   - teammember@artscore.pro (Członek zespołu)');
+
+  // 6. Utworzenie danych dla quizów
+  console.log('\n🧠 Tworzę dane dla quizów...');
+
+  const styleQuiz = await prisma.quiz.create({
+    data: {
+      title: 'Quiz Stylu',
+      description: 'Odkryj swój idealny styl wnętrza.',
+      type: 'STYLE',
+    },
+  });
+
+  const functionalQuiz = await prisma.quiz.create({
+    data: {
+      title: 'Quiz Funkcjonalny',
+      description: 'Zdefiniuj swoje potrzeby funkcjonalne.',
+      type: 'FUNCTIONAL',
+    },
+  });
+
+  console.log('✅ Utworzono dwa quizy: Quiz Stylu i Quiz Funkcjonalny.');
+
+  // Pytania do Quizu Funkcjonalnego
+  const q1 = { id: 'clerk_q1', quizId: functionalQuiz.id, text: 'Ile osób mieszka w twoim domu?', type: 'single-choice', options: { choices: ['1 osoba', '2 osoby', '3-4 osoby', '5 i więcej'] } };
+  const q2 = { id: 'clerk_q2', quizId: functionalQuiz.id, text: 'W jakim wieku są osoby w domu?', type: 'multiple-choice', options: { choices: ['Niemowlęta (0-2 lata)', 'Małe dzieci (3-10 lat)', 'Nastolatki (11-17 lat)', 'Dorośli (18-64 lata)', 'Seniorzy (65+)'] } };
+  const q3 = { id: 'clerk_q3', quizId: functionalQuiz.id, text: 'Jak ważne jest miejsce do relaksu?', type: 'slider', options: { min: 1, max: 5, step: 1 } };
+  const q4 = { id: 'clerk_q4', quizId: functionalQuiz.id, text: 'Czy ktoś w domu ma ograniczenia ruchowe?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q4_followup' } };
+  const q4_followup = { id: 'clerk_q4_followup', quizId: functionalQuiz.id, text: 'Dla ilu osób i w jakich pomieszczeniach?', type: 'text' };
+  const q5 = { id: 'clerk_q5', quizId: functionalQuiz.id, text: 'Czy pracujesz lub uczysz się zdalnie?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q5_followup' } };
+  const q5_followup = { id: 'clerk_q5_followup', quizId: functionalQuiz.id, text: 'Ile godzin dziennie średnio?', type: 'single-choice', options: { choices: ['0-2h', '2-4h', '4-8h', '>8h'] } };
+
+  await prisma.question.createMany({
+    data: [q1, q2, q3, q4, q4_followup, q5, q5_followup]
+  });
+
+  console.log('✅ Dodano pytania do Quizu Funkcjonalnego.');
+
+  // Style dla Quizu Stylu
+  const styleNames = [
+    'Nowoczesny', 'Minimalistyczny', 'Industrialny', 'Rustykalny',
+    'Skandynawski', 'Boho', 'Glamour', 'Klasyczny'
+  ];
+  const styles = [];
+  for (const name of styleNames) {
+    const style = await prisma.style.create({
+      data: { name },
+    });
+    styles.push(style);
+  }
+
+  // Obrazy dla stylów
+  const styleImagesData = [
+    { styleName: 'Nowoczesny', url: '/images/704970.jpg' },
+    { styleName: 'Minimalistyczny', url: '/images/474881.jpg' },
+    { styleName: 'Industrialny', url: '/images/831465.jpg' },
+    { styleName: 'Rustykalny', url: '/images/75430.jpg' },
+    { styleName: 'Skandynawski', url: '/images/800939.jpg' },
+    { styleName: 'Boho', url: '/images/351204.jpg' },
+    { styleName: 'Glamour', url: '/images/7049701.jpg' },
+    { styleName: 'Klasyczny', url: '/images/image (11).png' },
+  ];
+
+  for (const imageData of styleImagesData) {
+    const style = styles.find(s => s.name === imageData.styleName);
+    if (style) {
+      await prisma.styleImage.create({
+        data: {
+          styleId: style.id,
+          url: imageData.url,
+        },
+      });
+    }
+  }
+
+  console.log('✅ Dodano style i obrazy dla Quizu Stylu.');
+
+  // Pomieszczenia
+  const rooms = [
+    "Salon", "Kuchnia", "Jadalnia", "Sypialnia główna", "Sypialnia dziecięca",
+    "Sypialnia gościnna", "Pokój nastolatka", "Garderoba", "Gabinet/biuro domowe",
+    "Pokój do nauki/pracownia", "Biblioteka/pokój do czytania", "Pokój multimedialny/home cinema",
+    "Pokój hobby", "Pokój fitness/siłownia domowa", "Łazienka główna", "Toaleta osobna",
+    "Łazienka dziecięca", "Pokój kąpielowy/spa domowe", "Pralnia/suszarnia", "Przedpokój/hol",
+    "Korytarz", "Wiatrołap", "Spiżarnia", "Schowek/gospodarczy", "Kotłownia/ pom. techniczne",
+    "Balkon", "Taras", "Ogród zimowy", "Patio", "Garaż", "Garaż gym", "Carport"
+  ];
+
+  await prisma.room.createMany({
+    data: rooms.map(name => ({ name })),
+    skipDuplicates: true,
+  });
+
+  console.log('✅ Dodano listę pomieszczeń.');
+
+  console.log('\n🔑 Konta testowe (hasło dla wszystkich: 12345678):');
+  console.log('   - admin@artscore.pro (Administrator)');
+  console.log('   - partner@artscore.pro (Partner - osoba fizyczna)');
+  console.log('   - company@artscore.pro (Partner - firma)');
+  console.log('   - teammember@artscore.pro (Członek zespołu)');
 }
 
 main()
