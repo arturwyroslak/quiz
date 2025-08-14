@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import TinderCard from 'react-tinder-card'
 import { Button } from "@/components/ui/button"
+import { X, Heart } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 // --- Data Structures ---
 interface Style { id: string; name: string; }
@@ -60,7 +62,6 @@ export function DetailsRound({ winningStyles, selectedRooms, onFinish }: Details
 
       let relevantDetails = allDetails.filter(detail => relevantCategories.has(detail.category));
 
-      // Adaptability: Ensure category diversity
       const categoryCounts = relevantDetails.reduce((acc, detail) => {
         acc[detail.category] = (acc[detail.category] || 0) + 1;
         return acc;
@@ -72,7 +73,6 @@ export function DetailsRound({ winningStyles, selectedRooms, onFinish }: Details
           relevantDetails.push(...otherDetails);
       }
 
-      // Shuffle and limit the deck size (e.g., to 24 as per docs)
       const finalDeck = relevantDetails.sort(() => 0.5 - Math.random()).slice(0, 24);
       setDeck(finalDeck);
       currentIndexRef.current = finalDeck.length > 0 ? finalDeck.length - 1 : -1;
@@ -83,7 +83,7 @@ export function DetailsRound({ winningStyles, selectedRooms, onFinish }: Details
 
   const swiped = (direction: 'left' | 'right', detailId: string) => {
     const scoreChange = direction === 'right' ? 1 : -1;
-    setScores(prev => ({ ...prev, [detailId]: scoreChange })); // Only store last vote
+    setScores(prev => ({ ...prev, [detailId]: scoreChange }));
     currentIndexRef.current -= 1;
   };
 
@@ -107,20 +107,20 @@ export function DetailsRound({ winningStyles, selectedRooms, onFinish }: Details
 
   if (isFinished) {
     return (
-        <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">Runda 3 zakończona!</h2>
-            <p className="mb-8">To już prawie koniec! Kliknij, aby zobaczyć swoje spersonalizowane wyniki.</p>
-            <Button onClick={handleFinish}>Zobacz wyniki</Button>
+        <div className="text-center p-8">
+            <h2 className="text-2xl font-bold mb-4 font-heading-semibold">Runda 3 zakończona!</h2>
+            <p className="mb-8 font-body-regular text-gray-600">To już prawie koniec! Kliknij, aby zobaczyć swoje spersonalizowane wyniki.</p>
+            <Button onClick={handleFinish} size="lg" className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">Zobacz wyniki</Button>
         </div>
     );
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4 text-center">Runda 3: Detale i Materiały</h2>
-      <p className="mb-8 text-gray-600 text-center">Wybierz elementy, które Ci się podobają, abyśmy mogli doprecyzować Twój styl.</p>
+    <div className="flex flex-col items-center w-full">
+      <h2 className="text-2xl font-bold mb-2 text-center font-heading-semibold">Runda 3: Detale i Materiały</h2>
+      <p className="mb-8 text-gray-600 text-center font-body-regular max-w-md">Wybierz elementy, które Ci się podobają, abyśmy mogli doprecyzować Twój styl.</p>
 
-      <div className='relative h-[400px] w-full max-w-sm mx-auto my-8'>
+      <div className='relative h-[50vh] w-full max-w-md mx-auto my-8 flex justify-center items-center'>
         {deck.length > 0 ? deck.map((detail, index) => (
           <TinderCard
             ref={childRefs[index]}
@@ -129,23 +129,32 @@ export function DetailsRound({ winningStyles, selectedRooms, onFinish }: Details
             onSwipe={(dir) => swiped(dir as 'left' | 'right', detail.id)}
             preventSwipe={['up', 'down']}
           >
-            <div
+            <motion.div
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: -20, opacity: 0 }}
+              transition={{ duration: 0.3 }}
               style={{ backgroundImage: `url(${detail.imageUrl || ''})` }}
-              className='relative w-[300px] h-[400px] bg-white rounded-xl bg-cover bg-center shadow-lg group'
+              className='relative w-[90vw] max-w-sm h-[50vh] bg-white rounded-2xl bg-cover bg-center shadow-2xl group'
             >
-                <div className="absolute bottom-2 left-2 right-2 p-2 bg-black bg-opacity-50 rounded-lg text-white">
-                    <p className="font-bold">{detail.name}</p>
-                    <p className="text-sm opacity-80">{detail.category}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                <div className="absolute bottom-4 left-4 right-4 p-2 text-white">
+                    <p className="font-heading-bold text-lg drop-shadow-lg">{detail.name}</p>
+                    <p className="text-sm opacity-90 font-body-regular drop-shadow-md">{detail.category}</p>
                 </div>
-            </div>
+            </motion.div>
           </TinderCard>
-        )) : <p className="text-center">Ładowanie detali...</p>}
-        {deck.length === 0 && <p className="text-center">Brak pasujących detali do wyświetlenia dla wybranych stylów i pomieszczeń.</p>}
+        )) : <p className="text-center text-gray-500">Ładowanie detali...</p>}
+        {deck.length === 0 && <p className="text-center text-gray-500">Brak pasujących detali do wyświetlenia.</p>}
       </div>
 
-       <div className="flex justify-center gap-4 mt-4">
-        <Button onClick={() => swipeUI('left')} variant="destructive">Nie podoba mi się</Button>
-        <Button onClick={() => swipeUI('right')}>Podoba mi się</Button>
+       <div className="flex justify-center items-center gap-4 mt-4">
+        <Button onClick={() => swipeUI('left')} variant="outline" size="lg" className="rounded-full p-4 w-20 h-20 border-2 border-red-500 text-red-500 hover:bg-red-500/10">
+          <X size={32} />
+        </Button>
+        <Button onClick={() => swipeUI('right')} variant="outline" size="lg" className="rounded-full p-4 w-20 h-20 border-2 border-green-500 text-green-500 hover:bg-green-500/10">
+          <Heart size={32} />
+        </Button>
       </div>
     </div>
   );

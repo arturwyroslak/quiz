@@ -7,6 +7,8 @@ import { styleClusters } from '@/lib/quiz/style-clusters'
 import { CommentModal, CommentSentiment } from './comment-modal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from '@/components/ui/textarea'
+import { X, Heart, MessageSquare, Ban } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // --- Updated Interfaces ---
 interface Detail { id: string; name: string; category: string; imageUrl: string; }
@@ -87,22 +89,16 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
 
         const scoredImages = unshownImages.map(image => {
             if (tempShownUrls.has(image.url)) return { image, score: Infinity };
-
-            // Calculate score based on the sum of scores of its details.
-            // A lower score means less exposure to already-liked items, promoting variety.
             let imageScore = image.tags.reduce((acc, tag) => acc + (detailStats[tag.detail.id]?.score || 0), 0);
-
-            // If the user provided text feedback, use it to influence the score.
             if (userPreferenceText) {
                 const preferenceBonus = image.tags.reduce((acc, tag) => {
                     if (userPreferenceText.toLowerCase().includes(tag.detail.name.toLowerCase())) {
-                        return acc - 5; // Give a bonus by reducing the score.
+                        return acc - 5;
                     }
                     return acc;
                 }, 0);
                 imageScore += preferenceBonus;
             }
-
             return { image, score: imageScore };
         }).sort((a, b) => a.score - b.score);
 
@@ -328,28 +324,29 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
     });
   };
 
-  if (allStyles.length === 0) return <div>Ładowanie...</div>;
+  if (allStyles.length === 0) return <div className="text-center p-8">Ładowanie...</div>;
 
   if (isFinished && finishReason) {
     const finalScores = Object.fromEntries(
         Object.entries(stats).map(([name, stat]) => [name, stat.score])
     );
     return (
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Runda 1 zakończona!</h2>
-        <Button onClick={() => onFinish(finalScores, finishReason)}>Przejdź dalej</Button>
+      <div className="text-center p-8">
+        <h2 className="text-2xl font-bold mb-4 font-heading-semibold">Runda 1 zakończona!</h2>
+        <p className="text-gray-600 mb-6">Świetna robota! Zobaczmy, co dalej.</p>
+        <Button onClick={() => onFinish(finalScores, finishReason)} size="lg" className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">Przejdź dalej</Button>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="flex flex-col items-center w-full">
       <CommentModal isOpen={isCommentModalOpen} onClose={() => setIsCommentModalOpen(false)} onSave={handleSaveComment} />
       <Dialog open={showPoolTooSmallModal} onOpenChange={setShowPoolTooSmallModal}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Pula stylów jest mała</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="font-heading-semibold">Pula stylów jest mała</DialogTitle>
+                <DialogDescription className="font-body-regular">
                     Wygląda na to, że wiele stylów Ci nie odpowiada. Aby pomóc nam lepiej trafić w Twój gust, opisz proszę w kilku słowach, co lubisz lub czego szukasz w aranżacji wnętrz.
                 </DialogDescription>
             </DialogHeader>
@@ -357,20 +354,23 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
                 value={userPreferenceText}
                 onChange={(e) => setUserPreferenceText(e.target.value)}
                 placeholder="Np. 'lubię naturalne światło i dużo drewna', 'szukam czegoś nowoczesnego, ale przytulnego'..."
+                className="font-body-regular"
             />
             <DialogFooter>
-                <Button onClick={() => setShowPoolTooSmallModal(false)}>Zapisz i kontynuuj</Button>
+                <Button onClick={() => setShowPoolTooSmallModal(false)} className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">Zapisz i kontynuuj</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={showEmergencyModal} onOpenChange={setShowEmergencyModal}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nie trafiamy w Twój gust?</DialogTitle></DialogHeader>
-          <p>Wygląda na to, że odrzuciłeś wiele propozycji. Spróbuj opisać co lubisz w komentarzach lub odrzuć całe style, które Ci nie pasują.</p>
-          <DialogFooter><Button onClick={() => setShowEmergencyModal(false)}>Kontynuuj</Button></DialogFooter>
+          <DialogHeader><DialogTitle className="font-heading-semibold">Nie trafiamy w Twój gust?</DialogTitle></DialogHeader>
+          <p className="font-body-regular">Wygląda na to, że odrzuciłeś wiele propozycji. Spróbuj opisać co lubisz w komentarzach lub odrzuć całe style, które Ci nie pasują.</p>
+          <DialogFooter><Button onClick={() => setShowEmergencyModal(false)} className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">Kontynuuj</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      <div className='relative h-[400px] w-full max-w-sm mx-auto my-8'>
+
+      <div className='relative h-[50vh] w-full max-w-md mx-auto my-8 flex justify-center items-center'>
+        <AnimatePresence>
         {deck.length > 0 ? deck.map((card, index) => (
           <TinderCard
             ref={childRefs[index]}
@@ -379,15 +379,20 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
             onSwipe={(dir) => swiped(dir as 'left' | 'right', card)}
             preventSwipe={['up', 'down']}
           >
-            <div
+            <motion.div
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: -20, opacity: 0 }}
+              transition={{ duration: 0.3 }}
               style={{ backgroundImage: `url(${card.image.url || ''})` }}
-              className='relative w-[300px] h-[400px] bg-white rounded-xl bg-cover bg-center shadow-lg group'
+              className='relative w-[90vw] max-w-sm h-[50vh] bg-white rounded-2xl bg-cover bg-center shadow-2xl group cursor-pointer'
             >
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
               <div className="absolute inset-0" onClick={(e) => handleImageClick(e, card, null)}></div>
               {card.image.tags.map(tag => (
                   <div
                       key={tag.id}
-                      className="absolute border-2 border-transparent hover:border-blue-500 cursor-pointer"
+                      className="absolute border-2 border-transparent hover:border-white/70 hover:bg-white/20 transition-all duration-200 rounded"
                       style={{
                           left: `${tag.x}%`,
                           top: `${tag.y}%`,
@@ -399,18 +404,29 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
                           handleImageClick(e, card, tag);
                       }}
                   >
-                    <span className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{tag.detail.name}</span>
+                    <span className="absolute -top-6 left-0 bg-[#b38a34] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">{tag.detail.name}</span>
                   </div>
               ))}
-            </div>
+               <div className="absolute bottom-4 left-4 text-white">
+                  <p className="font-heading-bold text-xl drop-shadow-lg">Przesuń, by ocenić</p>
+                  <p className="font-body-regular text-sm drop-shadow-md">Kliknij w detal, aby dodać komentarz</p>
+              </div>
+            </motion.div>
           </TinderCard>
-        )) : <p>Komponowanie nowej talii...</p>}
+        )) : <p className="text-gray-500">Komponowanie nowej talii...</p>}
+        </AnimatePresence>
       </div>
 
-      <div className="flex justify-center gap-4 mt-4">
-        <Button onClick={() => swipeUI('left')} variant="destructive">Odrzuć</Button>
-        <Button onClick={rejectStyle} variant="outline">Odrzuć styl</Button>
-        <Button onClick={() => swipeUI('right')}>Akceptuj</Button>
+      <div className="flex justify-center items-center gap-4 mt-4">
+        <Button onClick={() => swipeUI('left')} variant="outline" size="lg" className="rounded-full p-4 w-20 h-20 border-2 border-red-500 text-red-500 hover:bg-red-500/10">
+          <X size={32} />
+        </Button>
+        <Button onClick={rejectStyle} variant="outline" size="sm" className="border-gray-400 text-gray-500 hover:bg-gray-100">
+          <Ban className="mr-2 h-4 w-4" /> Odrzuć styl
+        </Button>
+        <Button onClick={() => swipeUI('right')} variant="outline" size="lg" className="rounded-full p-4 w-20 h-20 border-2 border-green-500 text-green-500 hover:bg-green-500/10">
+          <Heart size={32} />
+        </Button>
       </div>
     </div>
   );
