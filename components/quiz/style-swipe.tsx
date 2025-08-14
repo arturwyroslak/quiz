@@ -41,7 +41,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   const [isFinished, setIsFinished] = useState(false);
   const [finishReason, setFinishReason] = useState<FinishReason | null>(null);
   const [clickCoords, setClickCoords] = useState<{x: number, y: number} | null>(null);
-  const [likedDetailIds, setLikedDetailIds] = useState<string[]>([]);
+  const [detailStats, setDetailStats] = useState<Record<string, { score: number }>>({});
 
   const currentIndexRef = useRef(0);
   const canSwipe = useRef(true);
@@ -87,9 +87,23 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
 
         const scoredImages = unshownImages.map(image => {
             if (tempShownUrls.has(image.url)) return { image, score: Infinity };
-            const likedTagsCount = image.tags.filter(tag => likedDetailIds.includes(tag.detail.id)).length;
-            // TODO: Use userPreferenceText to influence score
-            return { image, score: likedTagsCount };
+
+            // Calculate score based on the sum of scores of its details.
+            // A lower score means less exposure to already-liked items, promoting variety.
+            let imageScore = image.tags.reduce((acc, tag) => acc + (detailStats[tag.detail.id]?.score || 0), 0);
+
+            // If the user provided text feedback, use it to influence the score.
+            if (userPreferenceText) {
+                const preferenceBonus = image.tags.reduce((acc, tag) => {
+                    if (userPreferenceText.toLowerCase().includes(tag.detail.name.toLowerCase())) {
+                        return acc - 5; // Give a bonus by reducing the score.
+                    }
+                    return acc;
+                }, 0);
+                imageScore += preferenceBonus;
+            }
+
+            return { image, score: imageScore };
         }).sort((a, b) => a.score - b.score);
 
         const bestImage = scoredImages[0]?.image;
@@ -103,7 +117,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
     setDeck(newDeck);
     currentIndexRef.current = newDeck.length - 1;
     canSwipe.current = true;
-  }, [allStyles, stats, rejectedStyles, showPoolTooSmallModal, likedDetailIds]);
+  }, [allStyles, stats, rejectedStyles, showPoolTooSmallModal, detailStats, userPreferenceText]);
 
   const checkStopCondition = useCallback(() => {
     if (totalSwipes >= 40) {
@@ -130,10 +144,24 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
         cluster: styleClusters.findIndex(c => c.includes(style.name)),
       }));
       setAllStyles(stylesWithClusters);
+
       const initialStats: Record<string, StyleStats> = {};
       stylesWithClusters.forEach(s => {
         initialStats[s.name] = { score: 0, likedCount: 0, shownCount: 0, shownImageUrls: new Set() };
       });
+      setStats(initialStats);
+
+      const initialDetailStats: Record<string, { score: number }> = {};
+      stylesWithClusters.forEach(style => {
+          style.images.forEach(image => {
+              image.tags.forEach(tag => {
+                  if (!initialDetailStats[tag.detail.id]) {
+                      initialDetailStats[tag.detail.id] = { score: 0 };
+                  }
+              });
+          });
+      });
+      setDetailStats(initialDetailStats);
 
       const initialDeck: DeckCard[] = [];
       const shownUrls = new Set<string>();
@@ -149,7 +177,6 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
             }
         }
       });
-      setStats(initialStats);
       setDeck(initialDeck);
       currentIndexRef.current = initialDeck.length - 1;
     });
@@ -165,33 +192,52 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
     if (!canSwipe.current) return;
     canSwipe.current = false;
     const { style, image } = card;
-    let scoreChange = 0;
+    let styleScoreChange = 0;
     let likeChange = 0;
+    let detailScoreChange = 0;
+
     if (direction === 'right') {
-      scoreChange = 2;
+      styleScoreChange = 2;
       likeChange = 1;
+      detailScoreChange = 1;
       setConsecutiveLeftSwipes(0);
-      const detailIds = card.image.tags.map(tag => tag.detail.id);
-      setLikedDetailIds(prev => [...new Set([...prev, ...detailIds])]);
     } else {
-      scoreChange = -2;
+      styleScoreChange = -2;
+      detailScoreChange = -1;
       setConsecutiveLeftSwipes(prev => prev + 1);
     }
     setStats(prev => ({
         ...prev,
         [style.name]: {
-            score: (prev[style.name]?.score || 0) + scoreChange,
+            score: (prev[style.name]?.score || 0) + styleScoreChange,
             likedCount: (prev[style.name]?.likedCount || 0) + likeChange,
             shownCount: (prev[style.name]?.shownCount || 0) + 1,
             shownImageUrls: new Set(prev[style.name]?.shownImageUrls).add(image.url),
         }
     }));
+
+    const detailIds = card.image.tags.map(tag => tag.detail.id);
+    setDetailStats(prev => {
+      const newDetailStats = { ...prev };
+      detailIds.forEach(id => {
+        newDetailStats[id] = { score: (newDetailStats[id]?.score || 0) + detailScoreChange };
+      });
+      return newDetailStats;
+    });
+
     setTotalSwipes(prev => prev + 1);
     if (sessionId) {
       fetch('/api/quiz/style-score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, styleId: style.id, imageId: image.id, score: scoreChange }),
+        body: JSON.stringify({
+          sessionId,
+          styleId: style.id,
+          imageId: image.id,
+          styleScoreChange,
+          detailScoreChange,
+          detailIds,
+        }),
       });
     }
     currentIndexRef.current -= 1;
@@ -246,6 +292,16 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
     if (!selectedCardForComment || !sessionId) return;
     const { image } = selectedCardForComment;
 
+    const scoreChange = sentiment === 'positive' ? 3 : sentiment === 'negative' ? -3 : 0;
+    const commentedDetailId = selectedTagForComment?.detail.id;
+
+    if (commentedDetailId && scoreChange !== 0) {
+      setDetailStats(prev => ({
+        ...prev,
+        [commentedDetailId]: { score: (prev[commentedDetailId]?.score || 0) + scoreChange }
+      }));
+    }
+
     const hotspot = selectedTagForComment ? {
         x: selectedTagForComment.x,
         y: selectedTagForComment.y,
@@ -266,7 +322,8 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
         styleImageId: image.id,
         text: comment,
         sentiment,
-        ...hotspot
+        ...hotspot,
+        imageTagId: selectedTagForComment?.id,
       }),
     });
   };
