@@ -2,13 +2,13 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
-  previewFeatures = ["accelerate"]
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:../db/artscore.db"
 }
 
 enum AccountType {
@@ -152,64 +152,61 @@ model Quiz {
 }
 
 model QuizSession {
-  id          String    @id @default(cuid())
-  userId      String?
-  quizId      String
-  isCompleted Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  user        User?     @relation(fields: [userId], references: [id])
-  answers     Answer[]
-  styleScores StyleScore[]
-  rooms       QuizSessionRoom[]
-  comments    Comment[]
+  id           String    @id @default(cuid())
+  userId       String?
+  quizId       String
+  isCompleted  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  quiz         Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user         User?     @relation(fields: [userId], references: [id])
+  answers      Answer[]
+  styleScores  StyleScore[]
+  detailScores DetailScore[]
+  rooms        QuizSessionRoom[]
+  comments     Comment[]
 
   @@map("quiz_sessions")
 }
 
 model Question {
-  id              String    @id @default(cuid())
-  questionCode    String    @unique // Human-readable ID, e.g., "lifestyle_1"
-  text            String
-  description     String?   // Optional description for more context
-  category        String    // e.g., "Styl życia i nawyki użytkownika"
-  type            String    // e.g., 'single-choice', 'multiple-choice', 'slider', 'text', 'image-choice', 'trade-off'
-  options         Json?     // Structured JSON for options, e.g., { choices: [], referencePoints: [] }
-  quizId          String
-  branchingLogic  Json?     // Structured JSON for advanced branching, e.g., { conditions: [], nextQuestionId: "" }
-  relevantRooms   String[]
-  tags            String[]  @default([]) // Tags for more granular logic
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  quiz            Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  answers         Answer[]
+  id             String   @id @default(cuid())
+  questionCode   String   @unique // Human-readable ID, e.g., "lifestyle_1"
+  text           String
+  description    String? // Optional description for more context
+  category       String // e.g., "Styl życia i nawyki użytkownika"
+  type           String // e.g., 'single-choice', 'multiple-choice', 'slider', 'text', 'image-choice', 'trade-off'
+  options        Json? // Structured JSON for options, e.g., { choices: [], referencePoints: [] }
+  quizId         String
+  branchingLogic  Json? // Structured JSON for advanced branching, e.g., { conditions: [], nextQuestionId: "" }
+  relevantRooms   String?
+  tags            String? // Tags for more granular logic
+  createdAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers        Answer[]
 
   @@map("questions")
 }
 
 model Answer {
-  id          String   @id @default(cuid())
-  sessionId   String
-  questionId  String
-  value       Json
-  createdAt   DateTime @default(now())
-
-  session   QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  question  Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  sessionId  String
+  questionId String
+  value      Json
+  createdAt  DateTime @default(now())
+  session    QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("answers")
 }
 
 model Style {
-  id    String @id @default(cuid())
-  name  String @unique
+  id          String       @id @default(cuid())
+  name        String       @unique
   description String?
-
-  images StyleImage[]
-  scores StyleScore[]
+  images      StyleImage[]
+  scores      StyleScore[]
 
   @@map("styles")
 }
@@ -218,11 +215,19 @@ model StyleImage {
   id      String @id @default(cuid())
   url     String
   styleId String
+  room    String?
 
-  style    Style     @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  style    Style      @relation(fields: [styleId], references: [id], onDelete: Cascade)
   comments Comment[]
+  tags     ImageTag[]
 
   @@map("style_images")
+}
+
+enum CommentSentiment {
+  positive
+  negative
+  neutral
 }
 
 model Comment {
@@ -232,10 +237,15 @@ model Comment {
   styleImageId String
   x            Float?
   y            Float?
+  w            Float?
+  h            Float?
+  sentiment    CommentSentiment @default(neutral)
+  imageTagId   String?
   createdAt    DateTime @default(now())
 
   session    QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   styleImage StyleImage  @relation(fields: [styleImageId], references: [id], onDelete: Cascade)
+  imageTag   ImageTag?   @relation(fields: [imageTagId], references: [id], onDelete: SetNull)
 
   @@map("comments")
 }
@@ -281,5 +291,38 @@ model Detail {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tags   ImageTag[]
+  scores DetailScore[]
+
   @@map("details")
+}
+
+model ImageTag {
+  id           String @id @default(cuid())
+  styleImageId String
+  detailId     String
+  x            Float
+  y            Float
+  width        Float
+  height       Float
+
+  styleImage StyleImage @relation(fields: [styleImageId], references: [id], onDelete: Cascade)
+  detail     Detail     @relation(fields: [detailId], references: [id], onDelete: Cascade)
+  comments   Comment[]
+
+  @@unique([styleImageId, detailId, x, y])
+  @@map("image_tags")
+}
+
+model DetailScore {
+  id        String @id @default(cuid())
+  sessionId String
+  detailId  String
+  score     Int
+
+  session QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  detail  Detail      @relation(fields: [detailId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, detailId])
+  @@map("detail_scores")
 }

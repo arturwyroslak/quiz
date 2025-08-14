@@ -8,8 +8,10 @@ import { CommentModal, CommentSentiment } from './comment-modal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from '@/components/ui/textarea'
 
-// Interfaces
-interface StyleImage { id: string; url: string; room?: string; }
+// --- Updated Interfaces ---
+interface Detail { id: string; name: string; category: string; imageUrl: string; }
+interface ImageTag { id: string; x: number; y: number; width: number; height: number; detail: Detail; }
+interface StyleImage { id: string; url: string; room?: string; tags: ImageTag[]; }
 interface Style { id: string; name: string; images: StyleImage[]; cluster: number; }
 interface DeckCard { style: Style; image: StyleImage; }
 interface StyleStats { score: number; likedCount: number; shownCount: number; shownImageUrls: Set<string>; }
@@ -30,6 +32,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   const [rejectedStyles, setRejectedStyles] = useState<string[]>([]);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [selectedCardForComment, setSelectedCardForComment] = useState<DeckCard | null>(null);
+  const [selectedTagForComment, setSelectedTagForComment] = useState<ImageTag | null>(null);
   const [consecutiveLeftSwipes, setConsecutiveLeftSwipes] = useState(0);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showPoolTooSmallModal, setShowPoolTooSmallModal] = useState(false);
@@ -38,32 +41,18 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   const [isFinished, setIsFinished] = useState(false);
   const [finishReason, setFinishReason] = useState<FinishReason | null>(null);
   const [clickCoords, setClickCoords] = useState<{x: number, y: number} | null>(null);
+  const [likedDetailIds, setLikedDetailIds] = useState<string[]>([]);
 
   const currentIndexRef = useRef(0);
   const canSwipe = useRef(true);
 
-  // Memoized child refs for TinderCard
   const childRefs: any = useMemo(() => Array(deck.length).fill(0).map(() => React.createRef()), [deck.length]);
-
   const getRandomElement = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)];
-
-  const getImageForStyle = useCallback((style: Style, stat: StyleStats): StyleImage | null => {
-      const unshownImages = style.images.filter(img => !stat.shownImageUrls.has(img.url));
-      if (unshownImages.length === 0) return null; // No new images for this style
-
-      const roomSpecificImages = unshownImages.filter(img => img.room && selectedRooms.includes(img.room));
-      if (roomSpecificImages.length > 0) return getRandomElement(roomSpecificImages);
-
-      const genericImages = unshownImages.filter(img => !img.room);
-      if (genericImages.length > 0) return getRandomElement(genericImages);
-
-      return getRandomElement(unshownImages); // Fallback to any unshown image
-  }, [selectedRooms]);
 
   const composeNextDeck = useCallback(() => {
     const activeStyles = allStyles.filter(s => !rejectedStyles.includes(s.name));
     if (activeStyles.length === 0) {
-      setFinishReason('condition_met'); // Or some other reason
+      setFinishReason('condition_met');
       setIsFinished(true);
       return;
     }
@@ -80,36 +69,41 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
       const style = allStyles.find(s => s.name === name);
       if (style) potentialPicks.push(style);
     });
-    for (let i = 0; i < 3 && unshownStyles.length > 0; i++) {
-      const randomUnshown = getRandomElement(unshownStyles);
-      if (randomUnshown && !potentialPicks.find(s => s.id === randomUnshown.id)) {
-        potentialPicks.push(randomUnshown);
-        unshownStyles.splice(unshownStyles.indexOf(randomUnshown), 1);
-      }
-    }
-    // Per documentation, if pool is too small, add more photos from remaining styles.
+    unshownStyles.slice(0,3).forEach(style => {
+        if (!potentialPicks.find(s => s.id === style.id)) potentialPicks.push(style);
+    });
+
     const deckSize = showPoolTooSmallModal ? 12 : 8;
     while (potentialPicks.length < deckSize && activeStyles.length > 0) {
-      const randomStyle = getRandomElement(activeStyles);
-      if (!potentialPicks.find(s => s.id === randomStyle.id)) {
-        potentialPicks.push(randomStyle);
-      }
+      const randomStyle = getRandomElement(activeStyles.filter(s => !potentialPicks.includes(s)));
+      if (randomStyle) potentialPicks.push(randomStyle);
     }
 
     const newDeck: DeckCard[] = [];
+    const tempShownUrls = new Set<string>();
     potentialPicks.forEach(style => {
-        // TODO: Use userPreferenceText to guide card selection. This is not possible
-        // without tags or other metadata on images.
-        const image = getImageForStyle(style, stats[style.name]);
-        if (image) {
-            newDeck.push({ style, image });
+        const unshownImages = style.images.filter(img => !stats[style.name].shownImageUrls.has(img.url));
+        if (unshownImages.length === 0) return;
+
+        const scoredImages = unshownImages.map(image => {
+            if (tempShownUrls.has(image.url)) return { image, score: Infinity };
+            const likedTagsCount = image.tags.filter(tag => likedDetailIds.includes(tag.detail.id)).length;
+            // TODO: Use userPreferenceText to influence score
+            return { image, score: likedTagsCount };
+        }).sort((a, b) => a.score - b.score);
+
+        const bestImage = scoredImages[0]?.image;
+
+        if (bestImage) {
+            newDeck.push({ style, image: bestImage });
+            tempShownUrls.add(bestImage.url);
         }
     });
 
     setDeck(newDeck);
     currentIndexRef.current = newDeck.length - 1;
     canSwipe.current = true;
-  }, [allStyles, stats, rejectedStyles, getImageForStyle, showPoolTooSmallModal]);
+  }, [allStyles, stats, rejectedStyles, showPoolTooSmallModal, likedDetailIds]);
 
   const checkStopCondition = useCallback(() => {
     if (totalSwipes >= 40) {
@@ -142,14 +136,16 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
       });
 
       const initialDeck: DeckCard[] = [];
+      const shownUrls = new Set<string>();
       styleClusters.forEach((_, index) => {
         const stylesInCluster = stylesWithClusters.filter(s => s.cluster === index);
         if (stylesInCluster.length > 0) {
             const style = getRandomElement(stylesInCluster);
-            const image = getImageForStyle(style, initialStats[style.name]);
+            const image = style.images.find(img => !shownUrls.has(img.url) && selectedRooms.includes(img.room || ''));
             if (image) {
                 initialDeck.push({ style, image });
                 initialStats[style.name].shownImageUrls.add(image.url);
+                shownUrls.add(image.url);
             }
         }
       });
@@ -163,7 +159,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ quizId, selectedRooms }),
     }).then(res => res.json()).then(data => setSessionId(data.id));
-  }, [quizId, selectedRooms, getImageForStyle]);
+  }, [quizId, selectedRooms]);
 
   const swiped = (direction: 'left' | 'right', card: DeckCard) => {
     if (!canSwipe.current) return;
@@ -175,6 +171,8 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
       scoreChange = 2;
       likeChange = 1;
       setConsecutiveLeftSwipes(0);
+      const detailIds = card.image.tags.map(tag => tag.detail.id);
+      setLikedDetailIds(prev => [...new Set([...prev, ...detailIds])]);
     } else {
       scoreChange = -2;
       setConsecutiveLeftSwipes(prev => prev + 1);
@@ -193,7 +191,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
       fetch('/api/quiz/style-score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, styleId: style.id, score: scoreChange }),
+        body: JSON.stringify({ sessionId, styleId: style.id, imageId: image.id, score: scoreChange }),
       });
     }
     currentIndexRef.current -= 1;
@@ -215,7 +213,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
 
   useEffect(() => {
     if (allStyles.length > 0 && rejectedStyles.length / allStyles.length > 0.5) {
-        if (!showPoolTooSmallModal) { // Prevent re-triggering
+        if (!showPoolTooSmallModal) {
             setShowPoolTooSmallModal(true);
         }
     }
@@ -228,39 +226,37 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   };
 
   const rejectStyle = () => {
-    if (currentIndexRef.current < 0) return;
+    if (currentIndexRef.current < 0 || !deck[currentIndexRef.current]) return;
     const currentCard = deck[currentIndexRef.current];
     setRejectedStyles(prev => [...prev, currentCard.style.name]);
-    // This immediately removes the card from view, should also trigger next
     swipeUI('left');
   };
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, card: DeckCard) => {
+  const handleImageClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, card: DeckCard, tag: ImageTag | null) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100; // in percentage
-    const y = ((e.clientY - rect.top) / rect.height) * 100; // in percentage
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
     setClickCoords({ x, y });
     setSelectedCardForComment(card);
+    setSelectedTagForComment(tag);
     setIsCommentModalOpen(true);
   };
 
   const handleSaveComment = (comment: string, sentiment: CommentSentiment) => {
     if (!selectedCardForComment || !sessionId) return;
+    const { image } = selectedCardForComment;
 
-    const { style, image } = selectedCardForComment;
-    let scoreChange = 0;
-    if (sentiment === 'positive') scoreChange = 3;
-    if (sentiment === 'negative') scoreChange = -3;
-
-    if (scoreChange !== 0) {
-        setStats(prev => ({
-            ...prev,
-            [style.name]: {
-                ...prev[style.name],
-                score: (prev[style.name]?.score || 0) + scoreChange,
-            }
-        }));
-    }
+    const hotspot = selectedTagForComment ? {
+        x: selectedTagForComment.x,
+        y: selectedTagForComment.y,
+        w: selectedTagForComment.width,
+        h: selectedTagForComment.height,
+    } : {
+        x: clickCoords?.x,
+        y: clickCoords?.y,
+        w: 10,
+        h: 10,
+    };
 
     fetch('/api/quiz/comment', {
       method: 'POST',
@@ -270,10 +266,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
         styleImageId: image.id,
         text: comment,
         sentiment,
-        x: clickCoords?.x,
-        y: clickCoords?.y,
-        w: 10, // Mocked width
-        h: 10, // Mocked height
+        ...hotspot
       }),
     });
   };
@@ -295,7 +288,6 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   return (
     <div>
       <CommentModal isOpen={isCommentModalOpen} onClose={() => setIsCommentModalOpen(false)} onSave={handleSaveComment} />
-
       <Dialog open={showPoolTooSmallModal} onOpenChange={setShowPoolTooSmallModal}>
         <DialogContent>
             <DialogHeader>
@@ -314,7 +306,6 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
             </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <Dialog open={showEmergencyModal} onOpenChange={setShowEmergencyModal}>
         <DialogContent>
           <DialogHeader><DialogTitle>Nie trafiamy w Twój gust?</DialogTitle></DialogHeader>
@@ -322,7 +313,6 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
           <DialogFooter><Button onClick={() => setShowEmergencyModal(false)}>Kontynuuj</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-
       <div className='relative h-[400px] w-full max-w-sm mx-auto my-8'>
         {deck.length > 0 ? deck.map((card, index) => (
           <TinderCard
@@ -335,9 +325,26 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
             <div
               style={{ backgroundImage: `url(${card.image.url || ''})` }}
               className='relative w-[300px] h-[400px] bg-white rounded-xl bg-cover bg-center shadow-lg group'
-              onClick={(e) => handleImageClick(e, card)}
             >
-              {/* Style name removed as per requirement */}
+              <div className="absolute inset-0" onClick={(e) => handleImageClick(e, card, null)}></div>
+              {card.image.tags.map(tag => (
+                  <div
+                      key={tag.id}
+                      className="absolute border-2 border-transparent hover:border-blue-500 cursor-pointer"
+                      style={{
+                          left: `${tag.x}%`,
+                          top: `${tag.y}%`,
+                          width: `${tag.width}%`,
+                          height: `${tag.height}%`
+                      }}
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          handleImageClick(e, card, tag);
+                      }}
+                  >
+                    <span className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{tag.detail.name}</span>
+                  </div>
+              ))}
             </div>
           </TinderCard>
         )) : <p>Komponowanie nowej talii...</p>}
