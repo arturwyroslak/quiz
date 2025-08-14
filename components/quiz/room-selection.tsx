@@ -1,52 +1,78 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-
-const rooms = [
-  "Salon", "Kuchnia", "Jadalnia", "Sypialnia główna", "Sypialnia dziecięca",
-  "Sypialnia gościnna", "Pokój nastolatka", "Garderoba", "Gabinet/biuro domowe",
-  "Pokój do nauki/pracownia", "Biblioteka/pokój do czytania", "Pokój multimedialny/home cinema",
-  "Pokój hobby", "Pokój fitness/siłownia domowa", "Łazienka główna", "Toaleta osobna",
-  "Łazienka dziecięca", "Pokój kąpielowy/spa domowe", "Pralnia/suszarnia", "Przedpokój/hol",
-  "Korytarz", "Wiatrołap", "Spiżarnia", "Schowek/gospodarczy", "Kotłownia/ pom. techniczne",
-  "Balkon", "Taras", "Ogród zimowy", "Patio", "Garaż", "Garaż gym", "Carport"
-]
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Room } from '@prisma/client'
 
 interface RoomSelectionProps {
-  onNext: (selectedRooms: string[]) => void
+  onComplete: (selectedRooms: string[]) => void
 }
 
-export function RoomSelection({ onNext }: RoomSelectionProps) {
+export function RoomSelection({ onComplete }: RoomSelectionProps) {
+  const [rooms, setRooms] = useState<Room[]>([])
   const [selectedRooms, setSelectedRooms] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleRoomToggle = (room: string) => {
-    setSelectedRooms((prev) =>
-      prev.includes(room) ? prev.filter((r) => r !== room) : [...prev, room]
+  useEffect(() => {
+    fetch('/api/rooms')
+      .then(res => res.json())
+      .then((data: Room[]) => {
+        setRooms(data)
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error("Failed to fetch rooms:", err)
+        setLoading(false)
+      })
+  }, [])
+
+  const handleSelectRoom = (roomName: string) => {
+    setSelectedRooms(prev =>
+      prev.includes(roomName)
+        ? prev.filter(name => name !== roomName)
+        : [...prev, roomName]
     )
   }
 
+  const handleSubmit = () => {
+    if (selectedRooms.length > 0) {
+      onComplete(selectedRooms)
+    }
+  }
+
+  if (loading) {
+    return <div>Ładowanie pomieszczeń...</div>
+  }
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Wybierz pomieszczenia</h2>
-      <p className="mb-8 text-gray-600">Zaznacz wszystkie pomieszczenia, które chcesz zaprojektować. Na tej podstawie dobierzemy odpowiednie inspiracje.</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-        {rooms.map((room) => (
-          <div key={room} className="flex items-center space-x-2">
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Wybierz pomieszczenia</CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {rooms.map(room => (
+          <div key={room.id} className="flex items-center space-x-2">
             <Checkbox
-              id={room}
-              checked={selectedRooms.includes(room)}
-              onCheckedChange={() => handleRoomToggle(room)}
+              id={room.id}
+              checked={selectedRooms.includes(room.name)}
+              onCheckedChange={() => handleSelectRoom(room.name)}
             />
-            <Label htmlFor={room} className="cursor-pointer">{room}</Label>
+            <label
+              htmlFor={room.id}
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              {room.name}
+            </label>
           </div>
         ))}
-      </div>
-      <Button onClick={() => onNext(selectedRooms)} disabled={selectedRooms.length === 0}>
-        Dalej
-      </Button>
-    </div>
+      </CardContent>
+      <CardFooter>
+        <Button onClick={handleSubmit} disabled={selectedRooms.length === 0}>
+          Rozpocznij Quiz
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }

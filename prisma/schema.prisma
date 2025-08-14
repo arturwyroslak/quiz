@@ -170,18 +170,22 @@ model QuizSession {
 }
 
 model Question {
-  id        String   @id @default(cuid())
-  text      String
-  type      String // e.g., 'single-choice', 'multiple-choice', 'slider'
-  options   Json?
-  quizId    String
-  branchingLogic Json?
-  relevantRooms String[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(cuid())
+  questionCode    String    @unique // Human-readable ID, e.g., "lifestyle_1"
+  text            String
+  description     String?   // Optional description for more context
+  category        String    // e.g., "Styl życia i nawyki użytkownika"
+  type            String    // e.g., 'single-choice', 'multiple-choice', 'slider', 'text', 'image-choice', 'trade-off'
+  options         Json?     // Structured JSON for options, e.g., { choices: [], referencePoints: [] }
+  quizId          String
+  branchingLogic  Json?     // Structured JSON for advanced branching, e.g., { conditions: [], nextQuestionId: "" }
+  relevantRooms   String[]
+  tags            String[]  @default([]) // Tags for more granular logic
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  answers   Answer[]
+  quiz            Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers         Answer[]
 
   @@map("questions")
 }
