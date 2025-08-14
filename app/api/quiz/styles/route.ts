@@ -5,7 +5,15 @@ export async function GET() {
   try {
     const styles = await prisma.style.findMany({
       include: {
-        images: true,
+        images: {
+          include: {
+            tags: {
+              include: {
+                detail: true,
+              },
+            },
+          },
+        },
       },
     })
     return NextResponse.json(styles)
