@@ -78,7 +78,7 @@ export function LoginForm() {
       if (res?.ok) {
         toast({
           title: "Zalogowano pomyślnie",
-          description: "Witaj w portalu ARTSCORE!",
+          description: "Witaj w portalu ARTSCORE! Za chwilę zostaniesz przekierowany.",
           variant: "default"
         });
         
@@ -96,11 +96,25 @@ export function LoginForm() {
             // Fallback redirect
             router.push("/partner-program/dashboard");
           }
-        }, 1000);
+        }, 1500);
       } else {
+        let title = "Błąd logowania";
+        let description = "Nieprawidłowy email lub hasło. Spróbuj ponownie.";
+
+        switch (res?.error) {
+          case "ACCOUNT_NOT_VERIFIED":
+            title = "Konto nieaktywne";
+            description = "Twoje konto nie zostało jeszcze zweryfikowane. Sprawdź swoją skrzynkę email w celu dokończenia rejestracji.";
+            break;
+          case "ACCOUNT_INACTIVE":
+            title = "Konto zablokowane";
+            description = "Twoje konto jest nieaktywne. Skontaktuj się z administratorem, aby uzyskać pomoc.";
+            break;
+        }
+
         toast({
-          title: "Błąd logowania",
-          description: "Nieprawidłowy email lub hasło",
+          title: title,
+          description: description,
           variant: "destructive"
         });
       }

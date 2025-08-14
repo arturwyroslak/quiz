@@ -120,7 +120,7 @@ export const authOptions: NextAuthOptions = {
             email: credentials.email,
             userId: user.id
           });
-          return null;
+          throw new Error("ACCOUNT_NOT_VERIFIED");
         }
 
         if (!user.isActive) {
@@ -128,7 +128,7 @@ export const authOptions: NextAuthOptions = {
             email: credentials.email,
             userId: user.id
           });
-          return null;
+          throw new Error("ACCOUNT_INACTIVE");
         }
 
         const passwordMatch = await compare(
@@ -137,6 +137,10 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!passwordMatch) {
+          logger.logAuth('Incorrect password attempt', {
+            email: credentials.email,
+            userId: user.id
+          });
           return null;
         }
 

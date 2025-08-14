@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { createErrorResponse, createSuccessResponse, handleGenericError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 export async function PUT(
   request: Request,
@@ -10,69 +12,53 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    if (!session?.user?.id) {
+      return createErrorResponse('Unauthorized', null, 401);
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+    const company = await prisma.user.findUnique({
+      where: { id: session.user.id },
     });
 
-    if (!user || user.accountType !== 'COMPANY') {
-      return new NextResponse('Forbidden', { status: 403 });
+    if (!company || company.accountType !== 'COMPANY') {
+      return createErrorResponse('Forbidden', null, 403);
     }
 
     const body = await request.json();
     const { name, email, phone, position, status } = body;
 
-    // Validate required fields
     if (!name || !email) {
-      return new NextResponse('Name and email are required', { status: 400 });
+      return createErrorResponse('Imię i nazwisko oraz email są wymagane', null, 400);
     }
 
-    // Check if team member exists and belongs to the company
     const existingMember = await prisma.teamMember.findFirst({
-      where: {
-        id: params.id,
-        companyId: user.id,
-      },
+      where: { id: params.id, companyId: company.id },
     });
 
     if (!existingMember) {
-      return new NextResponse('Team member not found', { status: 404 });
+      return createErrorResponse('Członek zespołu nie został znaleziony', null, 404);
     }
 
-    // Check if new email is already in use by another team member
     if (email !== existingMember.email) {
-      const emailInUse = await prisma.teamMember.findFirst({
-        where: {
-          email,
-          NOT: {
-            id: params.id,
-          },
-        },
-      });
-
+      const emailInUse = await prisma.user.findUnique({ where: { email } });
       if (emailInUse) {
-        return new NextResponse('Email already in use', { status: 400 });
+        return createErrorResponse('Ten adres email jest już używany', { field: 'email' }, 409);
       }
     }
 
     const updatedMember = await prisma.teamMember.update({
       where: { id: params.id },
-      data: {
-        name,
-        email,
-        phone,
-        position,
-        status: status === 'active' ? 'ACTIVE' : 'INACTIVE',
-      },
+      data: { name, email, phone, position, status: status === 'active' ? 'ACTIVE' : 'INACTIVE' },
     });
 
-    return NextResponse.json(updatedMember);
+    return createSuccessResponse('Dane członka zespołu zostały zaktualizowane', { member: updatedMember });
+
   } catch (error) {
-    console.error('Error updating team member:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    logger.error('Error updating team member', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      memberId: params.id
+    });
+    return handleGenericError(error);
   }
 }
 
@@ -83,38 +69,36 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    if (!session?.user?.id) {
+      return createErrorResponse('Unauthorized', null, 401);
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+    const company = await prisma.user.findUnique({
+      where: { id: session.user.id },
     });
 
-    if (!user || user.accountType !== 'COMPANY') {
-      return new NextResponse('Forbidden', { status: 403 });
+    if (!company || company.accountType !== 'COMPANY') {
+      return createErrorResponse('Forbidden', null, 403);
     }
 
-    // Check if team member exists and belongs to the company
     const existingMember = await prisma.teamMember.findFirst({
-      where: {
-        id: params.id,
-        companyId: user.id,
-      },
+      where: { id: params.id, companyId: company.id },
     });
 
     if (!existingMember) {
-      return new NextResponse('Team member not found', { status: 404 });
+      return createErrorResponse('Członek zespołu nie został znaleziony', null, 404);
     }
 
-    // Delete the team member
     await prisma.teamMember.delete({
       where: { id: params.id },
     });
 
-    return new NextResponse(null, { status: 204 });
+    return createSuccessResponse('Członek zespołu został usunięty', null, 200);
   } catch (error) {
-    console.error('Error deleting team member:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    logger.error('Error deleting team member', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      memberId: params.id
+    });
+    return handleGenericError(error);
   }
 } 
