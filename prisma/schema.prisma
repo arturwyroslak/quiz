@@ -176,6 +176,7 @@ model Question {
   options   Json?
   quizId    String
   branchingLogic Json?
+  relevantRooms String[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -201,6 +202,7 @@ model Answer {
 model Style {
   id    String @id @default(cuid())
   name  String @unique
+  description String?
 
   images StyleImage[]
   scores StyleScore[]
@@ -224,6 +226,8 @@ model Comment {
   text         String
   sessionId    String
   styleImageId String
+  x            Float?
+  y            Float?
   createdAt    DateTime @default(now())
 
   session    QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -263,4 +267,15 @@ model QuizSessionRoom {
   room    Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@map("quiz_session_rooms")
+}
+
+model Detail {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  imageUrl  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("details")
 }

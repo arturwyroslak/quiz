@@ -4,8 +4,10 @@ import { useState, useEffect } from "react"
 import { RoomSelection } from "@/components/quiz/room-selection"
 import { StyleSwipe } from "@/components/quiz/style-swipe"
 import { NarrowDownRound } from "@/components/quiz/narrow-down-round"
+import { DetailsRound } from "@/components/quiz/details-round"
 import { Quiz, Style } from '@prisma/client'
 import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { Button } from "@/components/ui/button"
 
 export default function Quiz1Page() {
@@ -34,38 +36,68 @@ export default function Quiz1Page() {
     setStep("style-swipe")
   }
 
-  const handleStyleSwipeFinish = (finalScores: Record<string, number>) => {
-    const sortedScores = Object.entries(finalScores).sort((a, b) => b[1] - a[1]);
+  const handleStyleSwipeFinish = (round1Scores: Record<string, number>) => {
+    const sortedScores = Object.entries(round1Scores).sort((a, b) => b[1] - a[1]);
     const topStyleNames = sortedScores.slice(0, 5).map(entry => entry[0]);
     const topStylesData = allStyles.filter(style => topStyleNames.includes(style.name));
 
     setTopStyles(topStylesData);
-    setScores(finalScores); // Keep the scores from round 1
+    setScores(round1Scores);
     setStep("narrow-down");
   }
 
   const handleNarrowDownFinish = (round2Scores: Record<string, number>) => {
-    // Combine scores from both rounds
-    const finalScores = { ...scores };
+    const combinedScores = { ...scores };
     for (const [styleId, score] of Object.entries(round2Scores)) {
         const style = allStyles.find(s => s.id === styleId);
         if (style) {
-            finalScores[style.name] = (finalScores[style.name] || 0) + score;
+            combinedScores[style.name] = (combinedScores[style.name] || 0) + score;
         }
     }
-    setScores(finalScores);
+    setScores(combinedScores);
+    setStep("details-round");
+  }
+
+  const handleDetailsFinish = (detailScores: Record<string, number>) => {
+    console.log("Detail scores:", detailScores);
     setStep("results");
   }
 
   const handleDownloadPdf = () => {
-    const doc = new jsPDF()
-    doc.text("Wyniki Twojego Quizu Stylu", 20, 20);
-    let y = 30;
-    Object.entries(scores).sort((a, b) => b[1] - a[1]).forEach(([style, score]) => {
-        doc.text(`${style}: ${score}`, 20, y);
-        y += 10;
+    const doc = new jsPDF();
+
+    doc.setFontSize(22);
+    doc.text("Raport Twojego Stylu", 105, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text("Wygenerowano przez ARTSCore Quiz", 105, 30, { align: 'center' });
+
+    doc.addPage();
+
+    doc.setFontSize(18);
+    doc.text("Twoje Główne Style", 14, 22);
+
+    const sortedStyles = Object.entries(scores)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+    const body = sortedStyles.map(([name, score]) => {
+        const styleData = allStyles.find(s => s.name === name);
+        return [name, score.toString(), styleData?.description || 'Brak opisu.'];
     });
-    doc.save("wyniki-quizu-stylu.pdf");
+
+    autoTable(doc, {
+        head: [['Styl', 'Wynik', 'Opis']],
+        body: body,
+        startY: 30,
+    });
+
+    doc.addPage();
+    doc.setFontSize(18);
+    doc.text("Polubione Detale i Materiały", 14, 22);
+    doc.setFontSize(12);
+    doc.text("Ta sekcja zostanie wypełniona po zaimplementowaniu śledzenia polubionych detali.", 14, 30);
+
+    doc.save("raport-stylu-artscore.pdf");
   }
 
   if (!styleQuiz || allStyles.length === 0) {
@@ -86,6 +118,10 @@ export default function Quiz1Page() {
 
       {step === "narrow-down" && (
         <NarrowDownRound topStyles={topStyles} onFinish={handleNarrowDownFinish} />
+      )}
+
+      {step === "details-round" && (
+        <DetailsRound onFinish={handleDetailsFinish} />
       )}
 
       {step === "results" && (

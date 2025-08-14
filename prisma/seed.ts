@@ -319,16 +319,16 @@ async function main() {
   console.log('✅ Utworzono dwa quizy: Quiz Stylu i Quiz Funkcjonalny.');
 
   // Pytania do Quizu Funkcjonalnego
-  const q1 = { id: 'clerk_q1', quizId: functionalQuiz.id, text: 'Ile osób mieszka w twoim domu?', type: 'single-choice', options: { choices: ['1 osoba', '2 osoby', '3-4 osoby', '5 i więcej'] } };
-  const q2 = { id: 'clerk_q2', quizId: functionalQuiz.id, text: 'W jakim wieku są osoby w domu?', type: 'multiple-choice', options: { choices: ['Niemowlęta (0-2 lata)', 'Małe dzieci (3-10 lat)', 'Nastolatki (11-17 lat)', 'Dorośli (18-64 lata)', 'Seniorzy (65+)'] } };
-  const q3 = { id: 'clerk_q3', quizId: functionalQuiz.id, text: 'Jak ważne jest miejsce do relaksu?', type: 'slider', options: { min: 1, max: 5, step: 1 } };
-  const q4 = { id: 'clerk_q4', quizId: functionalQuiz.id, text: 'Czy ktoś w domu ma ograniczenia ruchowe?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q4_followup' } };
-  const q4_followup = { id: 'clerk_q4_followup', quizId: functionalQuiz.id, text: 'Dla ilu osób i w jakich pomieszczeniach?', type: 'text' };
-  const q5 = { id: 'clerk_q5', quizId: functionalQuiz.id, text: 'Czy pracujesz lub uczysz się zdalnie?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q5_followup' } };
-  const q5_followup = { id: 'clerk_q5_followup', quizId: functionalQuiz.id, text: 'Ile godzin dziennie średnio?', type: 'single-choice', options: { choices: ['0-2h', '2-4h', '4-8h', '>8h'] } };
+  const q1 = { id: 'clerk_q1', quizId: functionalQuiz.id, text: 'Ile osób mieszka w twoim domu?', type: 'single-choice', options: { choices: ['1 osoba', '2 osoby', '3-4 osoby', '5 i więcej'] }, relevantRooms: [] };
+  const q2 = { id: 'clerk_q2', quizId: functionalQuiz.id, text: 'W jakim wieku są osoby w domu?', type: 'multiple-choice', options: { choices: ['Niemowlęta (0-2 lata)', 'Małe dzieci (3-10 lat)', 'Nastolatki (11-17 lat)', 'Dorośli (18-64 lata)', 'Seniorzy (65+)'] }, relevantRooms: ["Sypialnia dziecięca", "Pokój nastolatka"] };
+  const q3 = { id: 'clerk_q3', quizId: functionalQuiz.id, text: 'Jak ważne jest miejsce do relaksu?', type: 'slider', options: { min: 1, max: 5, step: 1 }, relevantRooms: ["Salon", "Sypialnia główna"] };
+  const q4 = { id: 'clerk_q4', quizId: functionalQuiz.id, text: 'Czy ktoś w domu ma ograniczenia ruchowe?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q4_followup' }, relevantRooms: ["Łazienka główna", "Przedpokój/hol"] };
+  const q4_followup = { id: 'clerk_q4_followup', quizId: functionalQuiz.id, text: 'Dla ilu osób i w jakich pomieszczeniach?', type: 'text', relevantRooms: [] };
+  const q5 = { id: 'clerk_q5', quizId: functionalQuiz.id, text: 'Czy pracujesz lub uczysz się zdalnie?', type: 'single-choice', options: { choices: ['Tak', 'Nie'] }, branchingLogic: { 'Tak': 'clerk_q5_followup' }, relevantRooms: ["Gabinet/biuro domowe", "Salon"] };
+  const q5_followup = { id: 'clerk_q5_followup', quizId: functionalQuiz.id, text: 'Ile godzin dziennie średnio?', type: 'single-choice', options: { choices: ['0-2h', '2-4h', '4-8h', '>8h'] }, relevantRooms: [] };
 
   await prisma.question.createMany({
-    data: [q1, q2, q3, q4, q4_followup, q5, q5_followup]
+    data: [q1, q2, q3, q4, q4_followup, q5, q5_followup].map(q => ({...q, branchingLogic: q.branchingLogic ? q.branchingLogic : undefined}))
   });
 
   console.log('✅ Dodano pytania do Quizu Funkcjonalnego.');
@@ -339,9 +339,19 @@ async function main() {
     'Skandynawski', 'Boho', 'Glamour', 'Klasyczny'
   ];
   const styles = [];
-  for (const name of styleNames) {
+  const styleData = [
+    { name: 'Nowoczesny', description: 'Charakteryzuje się prostotą, czystymi liniami i minimalizmem.' },
+    { name: 'Minimalistyczny', description: 'Mniej znaczy więcej. Skupia się na funkcjonalności i podstawowych elementach.' },
+    { name: 'Industrialny', description: 'Surowe materiały jak cegła, metal i beton. Odsłonięte rury i instalacje.' },
+    { name: 'Rustykalny', description: 'Naturalne materiały, drewno, kamień. Ciepły i przytulny klimat wiejskiego domu.' },
+    { name: 'Skandynawski', description: 'Jasne kolory, naturalne światło, prostota i funkcjonalność.' },
+    { name: 'Boho', description: 'Swobodny, eklektyczny styl z dużą ilością wzorów, kolorów i tekstur.' },
+    { name: 'Glamour', description: 'Luksus, elegancja, błyszczące dodatki i wysokiej jakości materiały.' },
+    { name: 'Klasyczny', description: 'Ponadczasowa elegancja, symetria, inspirowany antykiem.' },
+  ];
+  for (const data of styleData) {
     const style = await prisma.style.create({
-      data: { name },
+      data: data,
     });
     styles.push(style);
   }
@@ -389,6 +399,20 @@ async function main() {
   });
 
   console.log('✅ Dodano listę pomieszczeń.');
+
+  // Detale dla Quizu Stylu
+  await prisma.detail.createMany({
+    data: [
+      { name: 'Lampa wisząca centralna', category: 'Oświetlenie', imageUrl: '/images/image (30).png' },
+      { name: 'Lampa podłogowa', category: 'Oświetlenie', imageUrl: '/images/image (11).png' },
+      { name: 'Parkiet dębowy', category: 'Podłogi i pokrycia', imageUrl: '/images/75430.jpg' },
+      { name: 'Płytki podłogowe gresowe', category: 'Podłogi i pokrycia', imageUrl: '/images/351204.jpg' },
+      { name: 'Zasłony lniane', category: 'Tkaniny i tekstylia', imageUrl: '/images/474881.jpg' },
+      { name: 'Sofa nowoczesna', category: 'Meble', imageUrl: '/images/704970.jpg' },
+    ]
+  });
+
+  console.log('✅ Dodano przykładowe detale i materiały.');
 
   console.log('\n🔑 Konta testowe (hasło dla wszystkich: 12345678):');
   console.log('   - admin@artscore.pro (Administrator)');

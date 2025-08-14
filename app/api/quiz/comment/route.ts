@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 
 export async function POST(request: Request) {
   try {
-    const { sessionId, styleImageId, text } = await request.json()
+    const { sessionId, styleImageId, text, x, y } = await request.json()
 
     if (!sessionId || !styleImageId || !text) {
       return NextResponse.json({ error: 'sessionId, styleImageId, and text are required' }, { status: 400 })
@@ -14,6 +14,8 @@ export async function POST(request: Request) {
         sessionId,
         styleImageId,
         text,
+        x,
+        y,
       },
     })
 

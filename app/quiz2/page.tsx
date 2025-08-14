@@ -6,6 +6,8 @@ import { Quiz } from '@prisma/client'
 
 export default function Quiz2Page() {
     const [functionalQuiz, setFunctionalQuiz] = useState<Quiz | null>(null)
+    // Simulate selected rooms from Quiz 1
+    const selectedRooms = ["Salon", "Sypialnia główna"]
 
     useEffect(() => {
         fetch('/api/quiz')
@@ -24,7 +26,7 @@ export default function Quiz2Page() {
         <div className="container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-8 text-center">{functionalQuiz.title}</h1>
         <div className="max-w-2xl mx-auto">
-            <FunctionalQuiz quizId={functionalQuiz.id} />
+            <FunctionalQuiz quizId={functionalQuiz.id} selectedRooms={selectedRooms} />
         </div>
         </div>
     )

@@ -5,10 +5,12 @@ import { Question, QuestionComponent } from "./question"
 
 interface FunctionalQuizProps {
     quizId: string;
+    selectedRooms: string[];
 }
 
-export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
-  const [questions, setQuestions] = useState<Question[]>([])
+export function FunctionalQuiz({ quizId, selectedRooms }: FunctionalQuizProps) {
+  const [allQuestions, setAllQuestions] = useState<Question[]>([])
+  const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([])
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -16,10 +18,13 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
   useEffect(() => {
     fetch(`/api/quiz/questions?quizId=${quizId}`)
         .then(res => res.json())
-        .then(data => {
-            setQuestions(data);
-            // Find the first question that is not a follow-up
-            const firstQuestion = data.find((q: any) => !q.id.includes('_followup'));
+        .then((data: Question[]) => {
+            setAllQuestions(data);
+            const fq = data.filter(q =>
+                q.relevantRooms.length === 0 || q.relevantRooms.some(room => selectedRooms.includes(room))
+            );
+            setFilteredQuestions(fq);
+            const firstQuestion = fq.find((q: any) => !q.id.includes('_followup'));
             setCurrentQuestion(firstQuestion || null);
         })
 
@@ -30,7 +35,7 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
     })
         .then(res => res.json())
         .then(data => setSessionId(data.id))
-  }, [quizId])
+  }, [quizId, selectedRooms])
 
   const handleAnswer = (answer: any) => {
     if (!currentQuestion) return;
@@ -47,22 +52,20 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
         })
     }
 
-    // Branching logic
     let nextQuestionId: string | null = null;
     if (currentQuestion.branchingLogic && (currentQuestion.branchingLogic as any)[answer]) {
         nextQuestionId = (currentQuestion.branchingLogic as any)[answer];
     }
 
     if (nextQuestionId) {
-        const nextQuestion = questions.find(q => q.id === nextQuestionId);
+        const nextQuestion = allQuestions.find(q => q.id === nextQuestionId);
         setCurrentQuestion(nextQuestion || null);
     } else {
-        // Find next question in the main flow
-        const currentIndex = questions.findIndex(q => q.id === currentQuestion.id);
+        const currentIndex = filteredQuestions.findIndex(q => q.id === currentQuestion.id);
         let nextQuestion = null;
-        for (let i = currentIndex + 1; i < questions.length; i++) {
-            if (!questions[i].id.includes('_followup')) {
-                nextQuestion = questions[i];
+        for (let i = currentIndex + 1; i < filteredQuestions.length; i++) {
+            if (!filteredQuestions[i].id.includes('_followup')) {
+                nextQuestion = filteredQuestions[i];
                 break;
             }
         }
@@ -70,7 +73,7 @@ export function FunctionalQuiz({ quizId }: FunctionalQuizProps) {
     }
   }
 
-  if (questions.length === 0) {
+  if (allQuestions.length === 0) {
       return <div>Ładowanie pytań...</div>
   }
 
