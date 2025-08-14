@@ -9,7 +9,7 @@ CREATE TABLE "users" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "verificationToken" TEXT,
     "resetPasswordToken" TEXT,
-    "resetPasswordExpires" DATETIME,
+    "resetPasswordExpires" TIMESTAMP,
     "referralCode" TEXT,
     "referredById" TEXT,
     "nip" TEXT,
@@ -17,8 +17,8 @@ CREATE TABLE "users" (
     "phone" TEXT,
     "address" TEXT,
     "companyName" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "users_referredById_fkey" FOREIGN KEY ("referredById") REFERENCES "users" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
@@ -36,8 +36,8 @@ CREATE TABLE "leads" (
     "consentContact" BOOLEAN NOT NULL DEFAULT false,
     "consentPromoMaterials" BOOLEAN NOT NULL DEFAULT false,
     "partnerId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "leads_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -50,8 +50,8 @@ CREATE TABLE "team_members" (
     "position" TEXT,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "companyId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "team_members_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -60,9 +60,9 @@ CREATE TABLE "reports" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "type" TEXT NOT NULL,
-    "data" TEXT NOT NULL,
+    "data" JSONB NOT NULL,
     "generatedBy" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "reports_generatedBy_fkey" FOREIGN KEY ("generatedBy") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -74,8 +74,8 @@ CREATE TABLE "user_notifications" (
     "emailLeadUpdates" BOOLEAN NOT NULL DEFAULT true,
     "emailUserProgram" BOOLEAN NOT NULL DEFAULT true,
     "emailMarketing" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "user_notifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -85,8 +85,8 @@ CREATE TABLE "quizzes" (
     "title" TEXT NOT NULL,
     "description" TEXT,
     "type" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL
 );
 
 -- CreateTable
@@ -95,8 +95,8 @@ CREATE TABLE "quiz_sessions" (
     "userId" TEXT,
     "quizId" TEXT NOT NULL,
     "isCompleted" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "quiz_sessions_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quizzes" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "quiz_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
@@ -109,14 +109,14 @@ CREATE TABLE "questions" (
     "description" TEXT,
     "category" TEXT NOT NULL,
     "type" TEXT NOT NULL,
-    "options" TEXT,
+    "options" JSONB,
     "quizId" TEXT NOT NULL,
-    "branchingLogic" TEXT,
+    "branchingLogic" JSONB,
     "relevantRooms" TEXT,
     "tags" TEXT,
     "order" INTEGER,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "questions_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quizzes" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -125,8 +125,8 @@ CREATE TABLE "answers" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "sessionId" TEXT NOT NULL,
     "questionId" TEXT NOT NULL,
-    "value" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "value" JSONB NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "answers_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "quiz_sessions" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "answers_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "questions" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -159,7 +159,7 @@ CREATE TABLE "comments" (
     "h" REAL,
     "sentiment" TEXT NOT NULL DEFAULT 'neutral',
     "imageTagId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "comments_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "quiz_sessions" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "comments_styleImageId_fkey" FOREIGN KEY ("styleImageId") REFERENCES "style_images" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "comments_imageTagId_fkey" FOREIGN KEY ("imageTagId") REFERENCES "image_tags" ("id") ON DELETE SET NULL ON UPDATE CASCADE
@@ -196,8 +196,8 @@ CREATE TABLE "details" (
     "name" TEXT NOT NULL,
     "category" TEXT NOT NULL,
     "imageUrl" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL
 );
 
 -- CreateTable
