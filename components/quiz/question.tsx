@@ -173,4 +173,3 @@ export const QuestionComponent = ({ question, onAnswer }: QuestionProps) => {
 
 // Exporting the old name for compatibility with functional-quiz.tsx
 export type { ClientQuestion as Question };
-export { QuestionComponent };
