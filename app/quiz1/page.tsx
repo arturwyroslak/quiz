@@ -9,15 +9,20 @@ import { MaterialSelection } from "@/components/quiz/material-selection"
 import { PlayoffRound, PlayoffReason, PlayoffScores } from "@/components/quiz/playoff-round"
 import { ModeSelection, QuizMode } from "@/components/quiz/mode-selection"
 import { HandoverScreen } from "@/components/quiz/handover-screen"
+import { ComparisonResults } from "@/components/quiz/comparison-results"
 import { Quiz, Style } from '@prisma/client'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { Card, CardContent } from "@/components/ui/card"
 
 type QuizStep = "mode-selection" | "room-selection" | "style-swipe" | "narrow-down" | "material-selection" | "playoff-round" | "details-round" | "results" | "comparison-results" | "handover";
 type User = 'user1' | 'user2';
 type PairState<T> = { user1: T, user2: T };
 interface Detail { id: string; name: string; category: string; imageUrl: string; }
+
+const QUIZ_STEPS_COUNT = 6; // mode, room, swipe, narrow, details, results
 
 export default function Quiz1Page() {
   const [step, setStep] = useState<QuizStep>("mode-selection");
@@ -33,12 +38,30 @@ export default function Quiz1Page() {
   const [styleQuiz, setStyleQuiz] = useState<Quiz | null>(null)
   const [allStyles, setAllStyles] = useState<Style[]>([])
   const [allDetails, setAllDetails] = useState<Detail[]>([])
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     fetch('/api/quiz').then(res => res.json()).then(q => setStyleQuiz(q.find((qz: Quiz) => qz.type === 'STYLE') || null));
     fetch('/api/quiz/styles').then(res => res.json()).then(setAllStyles);
     fetch('/api/quiz/details').then(res => res.json()).then(setAllDetails);
   }, []);
+
+  useEffect(() => {
+    const stepMap: Record<QuizStep, number> = {
+      "mode-selection": 1,
+      "room-selection": 2,
+      "style-swipe": 3,
+      "narrow-down": 4,
+      "details-round": 5,
+      "playoff-round": 4, // Part of narrow-down or details
+      "material-selection": 4, // Alternative path
+      "results": 6,
+      "comparison-results": 6,
+      "handover": step === 'handover' ? (nextStepAfterHandover === 'style-swipe' ? 2.5 : 3.5) : 0,
+    };
+    const currentStepNumber = stepMap[step] || 0;
+    setProgress((currentStepNumber / QUIZ_STEPS_COUNT) * 100);
+  }, [step, nextStepAfterHandover]);
 
   const handleModeSelection = (mode: QuizMode) => {
     setQuizMode(mode);
@@ -159,16 +182,12 @@ export default function Quiz1Page() {
     doc.text("Wygenerowano przez ARTSCore Quiz", 105, 30, { align: 'center' });
 
     if (quizMode === 'single') {
-        // ... existing single-player PDF logic ...
         const finalScores = scores as Record<string, number>;
         const finalDetailScores = detailScores as Record<string, number>;
-        // This part is simplified, the full logic was there before but this is a stub
         autoTable(doc, { head: [['Twoje Główne Style']], startY: 40, theme: 'plain' });
     } else {
-        // --- Pair Mode PDF Logic ---
         const pairScores = scores as PairState<Record<string, number>>;
         const pairDetailScores = detailScores as PairState<Record<string, number>>;
-
         const getTopStyles = (user: User) => Object.entries(pairScores[user]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n])=>allStyles.find(s=>s.name===n)).filter((s):s is Style=>!!s);
         const topStyles1 = getTopStyles('user1');
         const topStyles2 = getTopStyles('user2');
@@ -202,7 +221,15 @@ export default function Quiz1Page() {
     doc.save("raport-stylu-artscore.pdf");
   }
 
-  if (!styleQuiz || allStyles.length === 0) return <div>Ładowanie quizu...</div>;
+  if (!styleQuiz || allStyles.length === 0) {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <div className="text-center">
+                <p className="text-lg text-gray-600">Ładowanie quizu...</p>
+            </div>
+        </div>
+    );
+  }
 
   const getWinningStyles = () => {
     const userScores = quizMode === 'single' ? scores as Record<string, number> : (scores as PairState<Record<string, number>>)[currentUser];
@@ -211,42 +238,88 @@ export default function Quiz1Page() {
 
   const currentTopStyles = quizMode === 'single' ? topStyles as Style[] : (topStyles as PairState<Style[]>)[currentUser];
 
+  const renderStep = () => {
+    switch(step) {
+        case "mode-selection": return <ModeSelection onSelectMode={handleModeSelection} />;
+        case "room-selection": return <RoomSelection onNext={handleRoomSelectionNext} />;
+        case "handover": return <HandoverScreen nextUser={currentUser === 'user1' ? '1' : '2'} onNextTurn={handleNextTurn} />;
+        case "style-swipe": return <StyleSwipe onFinish={handleStyleSwipeFinish} quizId={styleQuiz.id} selectedRooms={selectedRooms} />;
+        case "narrow-down": return <NarrowDownRound topStyles={currentTopStyles} onFinish={handleNarrowDownFinish} selectedRooms={selectedRooms} />;
+        case "details-round": return <DetailsRound winningStyles={getWinningStyles()} selectedRooms={selectedRooms} onFinish={handleDetailsFinish} />;
+        case "playoff-round": return playoffReason && <PlayoffRound reason={playoffReason} styles={allStyles} onFinish={handlePlayoffFinish} />;
+        case "material-selection": return <MaterialSelection onFinish={handleMaterialSelectionFinish} />;
+        case "results":
+            return (
+                <Card>
+                    <CardContent className="p-6">
+                        <h2 className="text-2xl font-bold mb-4">Twoje Wyniki</h2>
+                        <ul>
+                            {Object.entries(scores as Record<string, number>).sort((a, b) => b[1] - a[1]).map(([style, score]) => (
+                            <li key={style}>{style}: {score}</li>
+                            ))}
+                        </ul>
+                        <Button onClick={handleDownloadPdf} className="mt-4">Pobierz PDF</Button>
+                    </CardContent>
+                </Card>
+            );
+        case "comparison-results":
+            return (
+                <ComparisonResults
+                    scores={scores as PairState<Record<string, number>>}
+                    detailScores={detailScores as PairState<Record<string, number>>}
+                    allStyles={allStyles}
+                    allDetails={allDetails}
+                    onDownloadPdf={handleDownloadPdf}
+                />
+            );
+        default: return null;
+    }
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-4 text-center">{styleQuiz.title}</h1>
-      {quizMode === 'pair' && !['mode-selection', 'room-selection', 'results', 'comparison-results'].includes(step) && <h2 className="text-xl font-bold mb-4 text-center text-blue-600">Tura gracza: {currentUser === 'user1' ? '1' : '2'}</h2>}
+    <div className="min-h-screen bg-gradient-to-br from-[#FEFCF8] via-white to-[#F8F4EF] font-body-regular text-[#2A2A2A]">
+        <div className="container mx-auto px-4 py-8">
+            <div className="max-w-4xl mx-auto">
+                <header className="text-center mb-8">
+                    <h1 className="text-3xl sm:text-4xl font-heading-semibold text-[#2A2A2A] mb-2">
+                        {styleQuiz.title}
+                    </h1>
+                    <p className="text-base sm:text-lg text-[#666666]">
+                        {styleQuiz.description}
+                    </p>
+                    {quizMode === 'pair' && !['mode-selection', 'room-selection', 'results', 'comparison-results'].includes(step) &&
+                        <p className="text-lg font-body-semibold text-[#b38a34] mt-2">
+                            Tura gracza: {currentUser === 'user1' ? '1' : '2'}
+                        </p>
+                    }
+                </header>
 
-      {step === "mode-selection" && <ModeSelection onSelectMode={handleModeSelection} />}
-      {step === "room-selection" && <RoomSelection onNext={handleRoomSelectionNext} />}
-      {step === "handover" && <HandoverScreen nextUser={currentUser === 'user1' ? '1' : '2'} onNextTurn={handleNextTurn} />}
+                {!['mode-selection', 'results', 'comparison-results'].includes(step) && (
+                    <div className="mb-8">
+                        <Progress value={progress} className="w-full" />
+                        <p className="text-center text-sm text-[#666666] mt-2">Krok {step === 'handover' ? (nextStepAfterHandover === 'style-swipe' ? 2 : 3) : (stepMap[step] || 0) -1} z {QUIZ_STEPS_COUNT - 1}</p>
+                    </div>
+                )}
 
-      {step === "style-swipe" && <StyleSwipe onFinish={handleStyleSwipeFinish} quizId={styleQuiz.id} selectedRooms={selectedRooms} />}
-      {step === "narrow-down" && <NarrowDownRound topStyles={currentTopStyles} onFinish={handleNarrowDownFinish} selectedRooms={selectedRooms} />}
-      {step === "details-round" && <DetailsRound winningStyles={getWinningStyles()} selectedRooms={selectedRooms} onFinish={handleDetailsFinish} />}
-
-      {step === "playoff-round" && playoffReason && <PlayoffRound reason={playoffReason} styles={allStyles} onFinish={handlePlayoffFinish} />}
-      {step === "material-selection" && <MaterialSelection onFinish={handleMaterialSelectionFinish} />}
-
-      {step === "results" && (
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Twoje Wyniki</h2>
-          <ul>
-            {Object.entries(scores as Record<string, number>).sort((a, b) => b[1] - a[1]).map(([style, score]) => (
-              <li key={style}>{style}: {score}</li>
-            ))}
-          </ul>
-          <Button onClick={handleDownloadPdf} className="mt-4">Pobierz PDF</Button>
+                <main>
+                    {renderStep()}
+                </main>
+            </div>
         </div>
-      )}
-      {step === "comparison-results" && (
-        <ComparisonResults
-            scores={scores as PairState<Record<string, number>>}
-            detailScores={detailScores as PairState<Record<string, number>>}
-            allStyles={allStyles}
-            allDetails={allDetails}
-            onDownloadPdf={handleDownloadPdf}
-        />
-      )}
     </div>
   )
 }
+
+// Dummy stepMap for progress calculation, should be defined outside or passed as prop
+const stepMap: Record<QuizStep, number> = {
+  "mode-selection": 1,
+  "room-selection": 2,
+  "style-swipe": 3,
+  "narrow-down": 4,
+  "details-round": 5,
+  "playoff-round": 4.5,
+  "material-selection": 5,
+  "results": 6,
+  "comparison-results": 6,
+  "handover": 0, // Handled dynamically
+};

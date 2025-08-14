@@ -4,10 +4,13 @@ import { useState, useEffect, useCallback } from "react"
 import { Question as PrismaQuestion } from "@prisma/client"
 import { QuestionComponent } from "./question"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Check } from "lucide-react"
 
 interface FunctionalQuizProps {
     quizId: string;
     selectedRooms: string[];
+    onComplete: () => void;
 }
 
 type ClientQuestion = Omit<PrismaQuestion, 'tags' | 'relevantRooms'> & {
@@ -41,7 +44,7 @@ const interpolateText = (text: string, answers: Record<string, any>): string => 
 };
 
 
-export function FunctionalQuiz({ quizId, selectedRooms }: FunctionalQuizProps) {
+export function FunctionalQuiz({ quizId, selectedRooms, onComplete }: FunctionalQuizProps) {
   const [allQuestions, setAllQuestions] = useState<Record<string, ClientQuestion>>({})
   const [questionQueue, setQuestionQueue] = useState<string[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({})
@@ -161,6 +164,7 @@ export function FunctionalQuiz({ quizId, selectedRooms }: FunctionalQuizProps) {
             setQuestionQueue([]);
             setCurrentQuestionCode(null);
             setIsComplete(true);
+            onComplete();
         }
     }
 
@@ -173,17 +177,30 @@ export function FunctionalQuiz({ quizId, selectedRooms }: FunctionalQuizProps) {
 
   if (isComplete) {
     return (
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4">Quiz zakończony!</h2>
-        <p className="mb-6">Dziękujemy za Twoje odpowiedzi. Pomogą nam one lepiej zrozumieć Twoje potrzeby.</p>
-        <div className="max-w-md mx-auto bg-gray-100 dark:bg-gray-800 rounded-md p-4 my-4">
-             <h3 className="font-bold text-lg mb-2">Podsumowanie odpowiedzi</h3>
-             <pre className="text-left text-sm overflow-x-auto">
-                {JSON.stringify(answers, null, 2)}
-             </pre>
-        </div>
-        <Button onClick={() => window.location.reload()}>Zacznij od nowa</Button>
-      </div>
+      <Card className="w-full max-w-2xl mx-auto text-center p-8 border-gray-200/80 shadow-sm bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+            <div className="mx-auto bg-gradient-to-br from-green-50 to-green-100 w-16 h-16 rounded-full flex items-center justify-center">
+                <Check className="w-10 h-10 text-green-600" />
+            </div>
+            <CardTitle className="font-heading-semibold text-2xl mt-4">Quiz zakończony!</CardTitle>
+            <CardDescription className="font-body-regular text-base text-gray-600">
+                Dziękujemy za Twoje odpowiedzi. Pomogą nam one lepiej zrozumieć Twoje potrzeby funkcjonalne i przygotować idealne rozwiązania.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="max-w-md mx-auto bg-gray-50 dark:bg-gray-800 rounded-md p-4 my-4 border border-gray-200">
+                 <h3 className="font-bold text-lg mb-2 font-heading-medium">Podsumowanie odpowiedzi</h3>
+                 <pre className="text-left text-sm overflow-x-auto font-mono bg-white p-2 rounded">
+                    {JSON.stringify(answers, null, 2)}
+                 </pre>
+            </div>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+            <Button onClick={() => window.location.reload()} size="lg" className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">
+                Wypełnij ponownie
+            </Button>
+        </CardFooter>
+      </Card>
     )
   }
 

@@ -2,9 +2,9 @@
 
 import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, User, Heart, HeartCrack, Shuffle } from "lucide-react"
+import { Users, User, Heart, HeartCrack, Shuffle, Award, Star } from "lucide-react"
 
 // These types would ideally be in a central types file
 type User = 'user1' | 'user2';
@@ -49,7 +49,6 @@ export function ComparisonResults({ scores, detailScores, allStyles, allDetails,
 
     const sharedLikedDetails = allDetails.filter(d => likedDetails1.has(d.id) && likedDetails2.has(d.id));
 
-    // Simple compromise: suggest a style that is liked by one person but not in the top 3 of the other
     const compromiseStyles = [...uniqueStyles1, ...uniqueStyles2].filter(style => {
         const s1Score = scores.user1[style.name] || 0;
         const s2Score = scores.user2[style.name] || 0;
@@ -60,84 +59,102 @@ export function ComparisonResults({ scores, detailScores, allStyles, allDetails,
 
   }, [scores, detailScores, allStyles, allDetails]);
 
-  return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold">Wasze Wspólne Wyniki</h2>
-        <p className="text-gray-600 mt-2">Oto analiza Waszych preferencji. Użyjcie jej jako punktu wyjścia do stworzenia idealnego wnętrza.</p>
-      </div>
-
-      <Card>
-        <CardHeader className="flex-row items-center gap-4">
-            <Heart className="w-8 h-8 text-green-500" />
-            <CardTitle>Wspólne Odkrycia</CardTitle>
+  const ResultCard = ({ icon, title, description, children }: { icon: React.ReactNode, title: string, description: string, children: React.ReactNode }) => (
+    <Card className="w-full border-gray-200/80 shadow-sm bg-white/80 backdrop-blur-sm">
+        <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+            <div className="p-3 bg-gradient-to-br from-[#b38a34]/20 to-transparent rounded-full">
+                {icon}
+            </div>
+            <div>
+                <CardTitle className="font-heading-semibold text-xl">{title}</CardTitle>
+                <CardDescription className="font-body-regular text-base">{description}</CardDescription>
+            </div>
         </CardHeader>
         <CardContent>
-            {analysis.sharedStyles.length > 0 ? (
-                <div>
-                    <h3 className="font-semibold mb-2">Style, które oboje lubicie:</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {analysis.sharedStyles.map(s => <Badge key={s.id} variant="default">{s.name}</Badge>)}
-                    </div>
-                </div>
-            ) : <p>Nie znaleziono wspólnych stylów w Waszych top 3.</p>}
-             {analysis.sharedLikedDetails.length > 0 && (
-                <div className="mt-4">
-                    <h3 className="font-semibold mb-2">Detale, które oboje polubiliście:</h3>
-                     <div className="flex flex-wrap gap-2">
-                        {analysis.sharedLikedDetails.map(d => <Badge key={d.id} variant="secondary">{d.name}</Badge>)}
-                    </div>
-                </div>
-            )}
+            {children}
         </CardContent>
-      </Card>
+    </Card>
+  )
+
+
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold font-heading-semibold">Wasze Wspólne Wyniki</h2>
+        <p className="text-gray-600 mt-2 font-body-regular max-w-2xl mx-auto">Oto analiza Waszych preferencji. Użyjcie jej jako punktu wyjścia do stworzenia idealnego wnętrza, które oboje pokochacie.</p>
+      </div>
+
+      <ResultCard
+        icon={<Heart className="w-6 h-6 text-[#b38a34]" />}
+        title="Wspólne Odkrycia"
+        description="Elementy, które oboje polubiliście. To świetna baza do dalszych rozmów!"
+      >
+        {analysis.sharedStyles.length > 0 && (
+            <div>
+                <h3 className="font-body-semibold text-gray-800 mb-2">Wspólne style:</h3>
+                <div className="flex flex-wrap gap-2">
+                    {analysis.sharedStyles.map(s => <Badge key={s.id} variant="default" className="bg-[#b38a34] hover:bg-[#9a7529] text-white text-sm px-3 py-1">{s.name}</Badge>)}
+                </div>
+            </div>
+        )}
+        {analysis.sharedLikedDetails.length > 0 && (
+            <div className={analysis.sharedStyles.length > 0 ? "mt-4" : ""}>
+                <h3 className="font-body-semibold text-gray-800 mb-2">Wspólne detale:</h3>
+                 <div className="flex flex-wrap gap-2">
+                    {analysis.sharedLikedDetails.map(d => <Badge key={d.id} variant="secondary" className="text-sm px-3 py-1">{d.name}</Badge>)}
+                </div>
+            </div>
+        )}
+        {analysis.sharedStyles.length === 0 && analysis.sharedLikedDetails.length === 0 && (
+            <p className="text-gray-500 font-body-regular">Nie znaleziono wspólnych preferencji w tej rundzie. Skupcie się na propozycjach kompromisu!</p>
+        )}
+      </ResultCard>
 
       <div className="grid md:grid-cols-2 gap-8">
-        <Card>
-            <CardHeader className="flex-row items-center gap-4">
-                <User className="w-8 h-8 text-blue-500" />
-                <CardTitle>Preferencje Gracza 1</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {analysis.uniqueStyles1.length > 0 ? (
-                     <div className="flex flex-wrap gap-2">
-                        {analysis.uniqueStyles1.map(s => <Badge key={s.id}>{s.name}</Badge>)}
-                    </div>
-                ) : <p>Wszystkie Twoje topowe style są wspólne!</p>}
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader className="flex-row items-center gap-4">
-                <User className="w-8 h-8 text-pink-500" />
-                <CardTitle>Preferencje Gracza 2</CardTitle>
-            </CardHeader>
-            <CardContent>
-                 {analysis.uniqueStyles2.length > 0 ? (
-                     <div className="flex flex-wrap gap-2">
-                        {analysis.uniqueStyles2.map(s => <Badge key={s.id}>{s.name}</Badge>)}
-                    </div>
-                ) : <p>Wszystkie Twoje topowe style są wspólne!</p>}
-            </CardContent>
-        </Card>
+        <ResultCard
+            icon={<User className="w-6 h-6 text-blue-600" />}
+            title="Preferencje Gracza 1"
+            description="Unikalne style, które przypadły do gustu Graczowi 1."
+        >
+            {analysis.uniqueStyles1.length > 0 ? (
+                 <div className="flex flex-wrap gap-2">
+                    {analysis.uniqueStyles1.map(s => <Badge key={s.id} className="bg-blue-100 text-blue-800 text-sm px-3 py-1">{s.name}</Badge>)}
+                </div>
+            ) : <p className="text-gray-500 font-body-regular">Wszystkie Twoje topowe style są wspólne!</p>}
+        </ResultCard>
+        <ResultCard
+            icon={<User className="w-6 h-6 text-pink-600" />}
+            title="Preferencje Gracza 2"
+            description="Unikalne style, które spodobały się Graczowi 2."
+        >
+             {analysis.uniqueStyles2.length > 0 ? (
+                 <div className="flex flex-wrap gap-2">
+                    {analysis.uniqueStyles2.map(s => <Badge key={s.id} className="bg-pink-100 text-pink-800 text-sm px-3 py-1">{s.name}</Badge>)}
+                </div>
+            ) : <p className="text-gray-500 font-body-regular">Wszystkie Twoje topowe style są wspólne!</p>}
+        </ResultCard>
       </div>
 
       {analysis.compromiseStyles.length > 0 && (
-        <Card>
-            <CardHeader className="flex-row items-center gap-4">
-                <Shuffle className="w-8 h-8 text-purple-500" />
-                <CardTitle>Propozycje Kompromisu</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="mb-4">Oto style, które mogą połączyć Wasze gusta. Są wysoko oceniane przez jedną osobę i neutralne lub pozytywne dla drugiej:</p>
-                <div className="flex flex-wrap gap-2">
-                    {analysis.compromiseStyles.map(s => <Badge key={s.id} variant="outline">{s.name}</Badge>)}
-                </div>
-            </CardContent>
-        </Card>
+        <ResultCard
+            icon={<Shuffle className="w-6 h-6 text-purple-600" />}
+            title="Propozycje Kompromisu"
+            description="Style, które mogą połączyć Wasze gusta. Są wysoko oceniane przez jedną osobę i neutralne lub pozytywne dla drugiej."
+        >
+            <div className="flex flex-wrap gap-2">
+                {analysis.compromiseStyles.map(s => <Badge key={s.id} variant="outline" className="text-purple-800 border-purple-300 text-sm px-3 py-1">{s.name}</Badge>)}
+            </div>
+        </ResultCard>
       )}
 
        <div className="text-center pt-8">
-           <Button onClick={onDownloadPdf}>Pobierz raport PDF</Button>
+           <Button
+            onClick={onDownloadPdf}
+            size="lg"
+            className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] hover:from-[#9a7529] hover:to-[#81621e] text-white px-8 py-4 text-base rounded-xl font-body-semibold shadow-md hover:shadow-lg transition-all duration-300"
+           >
+                Pobierz raport PDF
+            </Button>
        </div>
     </div>
   )
