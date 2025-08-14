@@ -65,7 +65,7 @@ export async function PUT(
         email,
         phone,
         position,
-        status: status as 'ACTIVE' | 'INACTIVE',
+        status: status === 'active' ? 'ACTIVE' : 'INACTIVE',
       },
     });
 
