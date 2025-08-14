@@ -107,8 +107,8 @@ export default function ResetPasswordForm() {
       }
 
       toast({
-        title: "Link resetujący wysłany",
-        description: "Sprawdź swoją skrzynkę email.",
+        title: "Wysłano prośbę o reset hasła",
+        description: "Jeśli konto o podanym adresie email istnieje w naszej bazie, wysłaliśmy na nie link do zresetowania hasła.",
         variant: "default",
       });
 

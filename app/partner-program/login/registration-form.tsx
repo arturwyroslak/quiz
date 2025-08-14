@@ -175,14 +175,11 @@ export function RegistrationForm() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Wystąpił nieznany błąd';
       
-      // Don't show toast for duplicate email error as it's already shown in the form
-      if (errorMessage !== 'Ten adres email jest już zarejestrowany') {
-        toast({
-          title: "Błąd rejestracji",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Błąd rejestracji",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

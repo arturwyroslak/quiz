@@ -200,10 +200,11 @@ export default function AccountPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: 'Hasło zmienione', description: data.message || 'Twoje hasło zostało zmienione.', variant: 'default' });
+        toast({ title: 'Hasło zmienione', description: data.message || 'Twoje hasło zostało pomyślnie zaktualizowane.', variant: 'default' });
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       } else {
-        toast({ title: 'Błąd', description: data.error || 'Nie udało się zmienić hasła.', variant: 'destructive' });
+        const title = data.error?.includes("Obecne hasło") ? "Błędne aktualne hasło" : "Błąd zmiany hasła";
+        toast({ title: title, description: data.error || 'Nie udało się zmienić hasła. Spróbuj ponownie.', variant: 'destructive' });
       }
     } catch (err) {
       toast({ title: 'Błąd', description: 'Błąd połączenia z serwerem', variant: 'destructive' });
