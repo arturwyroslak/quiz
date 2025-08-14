@@ -181,6 +181,7 @@ model Question {
   branchingLogic  Json? // Structured JSON for advanced branching, e.g., { conditions: [], nextQuestionId: "" }
   relevantRooms   String?
   tags            String? // Tags for more granular logic
+  order           Int?     // Optional field for explicit question ordering
   createdAt       DateTime @default(now())
   updatedAt      DateTime @updatedAt
   quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
