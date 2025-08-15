@@ -1199,6 +1199,364 @@ async function main() {
 
   console.log(`✅ Dodano ${functionalQuestions.length} pytań do Quizu Funkcjonalnego.`);
 
+  // 3. Seed Style Quiz
+  const styleQuiz = await prisma.quiz.create({
+    data: {
+      title: 'Quiz Stylu Wnętrzarskiego',
+      description: 'Odkryj swój idealny styl wnętrzarski poprzez wizualną selekcję inspiracji.',
+      type: 'STYLE',
+    },
+  });
+  console.log(`✅ Utworzono "${styleQuiz.title}".`);
+
+  // 4. Seed Styles based on documentation
+  const stylesData = [
+    'Skandynawski', 'Nowoczesny', 'Industrialny', 'Minimalistyczny', 'Boho',
+    'Glamour', 'Klasyczny', 'Loft', 'Japandi', 'Art deco', 'Retro', 'Vintage',
+    'Hamptons', 'Modern farmhouse', 'Eklektyczny', 'Śródziemnomorski', 'Rustykalny',
+    'Urban jungle', 'Mid-century modern', 'Bauhaus', 'Cottagecore', 'Wabi-sabi',
+    'French country', 'Coastal', 'Transitional', 'Contemporary', 'Memphis',
+    'Zen', 'High-tech', 'Chalet', 'Tropical', 'Biophilic', 'Simple',
+    'Luxury', 'Neoclassic', 'Retro futuristic', 'Hollywood glam',
+    'Boho-chic', 'Modern boho', 'Eclectic', 'Farmhouse', 'Midcentury modern',
+    'Parisian', 'French', 'Mediterranean', 'Traditional', 'Baroque', 'Art nouveau',
+    'Shabby chic', 'Nautical', 'Futuristic', 'Cyberpunk', 'Vaporwave',
+    'Tribal', 'Japanese design', 'Maximalist', 'Pop-art', 'Eco-friendly',
+    'Gaming room', 'Medieval', 'Gothic'
+  ];
+
+  const createdStyles: any[] = [];
+  for (const styleName of stylesData) {
+    const style = await prisma.style.create({
+      data: {
+        name: styleName,
+        description: `Styl ${styleName.toLowerCase()} z unikalnym charakterem i estetyką.`,
+      }
+    });
+    createdStyles.push(style);
+  }
+  console.log(`✅ Dodano ${createdStyles.length} stylów.`);
+
+  // 5. Seed Details based on documentation (190 details from quiz1.md)
+  const detailsData = [
+    // Oświetlenie
+    { name: 'Lampa wisząca centralna', category: 'Oświetlenie' },
+    { name: 'Lampa sufitowa (plafon)', category: 'Oświetlenie' },
+    { name: 'Lampa podłogowa', category: 'Oświetlenie' },
+    { name: 'Lampa stołowa', category: 'Oświetlenie' },
+    { name: 'Lampa biurkowa', category: 'Oświetlenie' },
+    { name: 'Lampa nocna', category: 'Oświetlenie' },
+    { name: 'Kinkiet ścienny', category: 'Oświetlenie' },
+    { name: 'Reflektor punktowy', category: 'Oświetlenie' },
+    { name: 'Oświetlenie LED liniowe (widoczne)', category: 'Oświetlenie' },
+    { name: 'Taśma LED podszafkowa (widoczna)', category: 'Oświetlenie' },
+    { name: 'Oświetlenie schodowe (widoczne)', category: 'Oświetlenie' },
+    { name: 'Oświetlenie obrazów', category: 'Oświetlenie' },
+    { name: 'Oświetlenie lustra', category: 'Oświetlenie' },
+    { name: 'Oświetlenie szafkowe', category: 'Oświetlenie' },
+    { name: 'Oświetlenie sufitowe wpuszczane', category: 'Oświetlenie' },
+    { name: 'Oświetlenie ogrodowe', category: 'Oświetlenie' },
+    { name: 'Oświetlenie tarasowe', category: 'Oświetlenie' },
+    { name: 'Oświetlenie łazienkowe', category: 'Oświetlenie' },
+    { name: 'Oświetlenie z czujnikiem ruchu', category: 'Oświetlenie' },
+    { name: 'Girlanda świetlna', category: 'Oświetlenie' },
+
+    // Podłogi i pokrycia
+    { name: 'Parkiet (dębowy, jodełka, klasyczny)', category: 'Podłogi i pokrycia' },
+    { name: 'Panele podłogowe', category: 'Podłogi i pokrycia' },
+    { name: 'Płytki podłogowe (gres, terakota, heksagonalne)', category: 'Podłogi i pokrycia' },
+    { name: 'Dywan duży', category: 'Podłogi i pokrycia' },
+    { name: 'Dywanik mały', category: 'Podłogi i pokrycia' },
+    { name: 'Wykładzina', category: 'Podłogi i pokrycia' },
+    { name: 'Chodnik do przedpokoju', category: 'Podłogi i pokrycia' },
+    { name: 'Mata łazienkowa', category: 'Podłogi i pokrycia' },
+    { name: 'Mata kuchenna', category: 'Podłogi i pokrycia' },
+    { name: 'Podłoga z żywicy epoksydowej', category: 'Podłogi i pokrycia' },
+    { name: 'Podłoga z mikrocementu', category: 'Podłogi i pokrycia' },
+    { name: 'Podłoga z korka', category: 'Podłogi i pokrycia' },
+    { name: 'Podłoga z marmuru', category: 'Podłogi i pokrycia' },
+    { name: 'Podłoga z mozaiki', category: 'Podłogi i pokrycia' },
+    { name: 'Podłoga z desek drewnianych', category: 'Podłogi i pokrycia' },
+
+    // Tkaniny i tekstylia
+    { name: 'Zasłony', category: 'Tkaniny i tekstylia' },
+    { name: 'Firany', category: 'Tkaniny i tekstylia' },
+    { name: 'Rolety rzymskie', category: 'Tkaniny i tekstylia' },
+    { name: 'Rolety dzień-noc', category: 'Tkaniny i tekstylia' },
+    { name: 'Żaluzje poziome', category: 'Tkaniny i tekstylia' },
+    { name: 'Żaluzje pionowe', category: 'Tkaniny i tekstylia' },
+    { name: 'Narzuta na łóżko', category: 'Tkaniny i tekstylia' },
+    { name: 'Koc na sofę', category: 'Tkaniny i tekstylia' },
+    { name: 'Poduszki dekoracyjne', category: 'Tkaniny i tekstylia' },
+    { name: 'Poduszki na krzesła', category: 'Tkaniny i tekstylia' },
+    { name: 'Obrus na stół', category: 'Tkaniny i tekstylia' },
+    { name: 'Bieżnik na stół', category: 'Tkaniny i tekstylia' },
+    { name: 'Ręcznik łazienkowy', category: 'Tkaniny i tekstylia' },
+    { name: 'Ręcznik kuchenny', category: 'Tkaniny i tekstylia' },
+    { name: 'Dywanik łazienkowy', category: 'Tkaniny i tekstylia' },
+    { name: 'Dywanik do przedpokoju', category: 'Tkaniny i tekstylia' },
+    { name: 'Pokrowiec na sofę', category: 'Tkaniny i tekstylia' },
+    { name: 'Pokrowiec na krzesło', category: 'Tkaniny i tekstylia' },
+    { name: 'Zasłona prysznicowa', category: 'Tkaniny i tekstylia' },
+    { name: 'Mata do jogi', category: 'Tkaniny i tekstylia' },
+
+    // Meble
+    { name: 'Sofa', category: 'Meble' },
+    { name: 'Fotel', category: 'Meble' },
+    { name: 'Krzesło', category: 'Meble' },
+    { name: 'Taboret', category: 'Meble' },
+    { name: 'Pufa', category: 'Meble' },
+    { name: 'Łóżko pojedyncze', category: 'Meble' },
+    { name: 'Łóżko podwójne', category: 'Meble' },
+    { name: 'Łóżko piętrowe', category: 'Meble' },
+    { name: 'Łóżko z pojemnikiem', category: 'Meble' },
+    { name: 'Stół jadalniany', category: 'Meble' },
+    { name: 'Stół kawowy', category: 'Meble' },
+    { name: 'Stół rozkładany', category: 'Meble' },
+    { name: 'Biurko', category: 'Meble' },
+    { name: 'Konsola do przedpokoju', category: 'Meble' },
+    { name: 'Komoda', category: 'Meble' },
+    { name: 'Regał otwarty', category: 'Meble' },
+    { name: 'Regał zamknięty', category: 'Meble' },
+    { name: 'Witryna', category: 'Meble' },
+    { name: 'Szafa ubraniowa', category: 'Meble' },
+    { name: 'Szafa wnękowa', category: 'Meble' },
+    { name: 'Szafka nocna', category: 'Meble' },
+    { name: 'Szafka RTV', category: 'Meble' },
+    { name: 'Szafka na buty', category: 'Meble' },
+    { name: 'Ława', category: 'Meble' },
+    { name: 'Toaletka', category: 'Meble' },
+    { name: 'Łóżeczko dziecięce', category: 'Meble' },
+    { name: 'Krzesełko dziecięce', category: 'Meble' },
+    { name: 'Biurko dziecięce', category: 'Meble' },
+    { name: 'Stolik nocny', category: 'Meble' },
+    { name: 'Stolik pomocniczy', category: 'Meble' },
+
+    // Kolory i wykończenia ścian
+    { name: 'Ściana malowana jednolicie', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z akcentem kolorystycznym', category: 'Kolory i wykończenia ścian' },
+    { name: 'Tapeta na ścianie', category: 'Kolory i wykończenia ścian' },
+    { name: 'Tapeta z wzorem geometrycznym', category: 'Kolory i wykończenia ścian' },
+    { name: 'Tapeta z motywem roślinnym', category: 'Kolory i wykończenia ścian' },
+    { name: 'Tapeta z motywem dziecięcym', category: 'Kolory i wykończenia ścian' },
+    { name: 'Farba tablicowa na ścianie', category: 'Kolory i wykończenia ścian' },
+    { name: 'Farba magnetyczna na ścianie', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z cegły', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z betonu', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z paneli drewnianych', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z paneli tapicerowanych', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z lameli', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z płyt gipsowych', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z tynkiem strukturalnym', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z fototapetą', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z korka', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z paneli winylowych', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z mozaiką', category: 'Kolory i wykończenia ścian' },
+    { name: 'Ściana z boazerią', category: 'Kolory i wykończenia ścian' },
+
+    // Dekoracje i dodatki
+    { name: 'Lustro ścienne', category: 'Dekoracje i dodatki' },
+    { name: 'Lustro stojące', category: 'Dekoracje i dodatki' },
+    { name: 'Obraz na ścianie', category: 'Dekoracje i dodatki' },
+    { name: 'Plakat na ścianie', category: 'Dekoracje i dodatki' },
+    { name: 'Zegar ścienny', category: 'Dekoracje i dodatki' },
+    { name: 'Zegar stojący', category: 'Dekoracje i dodatki' },
+    { name: 'Półka ścienna', category: 'Dekoracje i dodatki' },
+    { name: 'Półka narożna', category: 'Dekoracje i dodatki' },
+    { name: 'Regał na książki', category: 'Dekoracje i dodatki' },
+    { name: 'Wazon na kwiaty', category: 'Dekoracje i dodatki' },
+    { name: 'Figurka dekoracyjna', category: 'Dekoracje i dodatki' },
+    { name: 'Świecznik', category: 'Dekoracje i dodatki' },
+    { name: 'Lampion', category: 'Dekoracje i dodatki' },
+    { name: 'Donica na rośliny', category: 'Dekoracje i dodatki' },
+    { name: 'Kosz na pranie', category: 'Dekoracje i dodatki' },
+    { name: 'Kosz na zabawki', category: 'Dekoracje i dodatki' },
+    { name: 'Kosz na gazety', category: 'Dekoracje i dodatki' },
+    { name: 'Makrama na ścianę', category: 'Dekoracje i dodatki' },
+    { name: 'Sztuczne kwiaty', category: 'Dekoracje i dodatki' },
+    { name: 'Sztuczne rośliny', category: 'Dekoracje i dodatki' },
+    { name: 'Panele korkowe (dekoracyjne)', category: 'Dekoracje i dodatki' },
+    { name: 'Panele z mchu', category: 'Dekoracje i dodatki' },
+    { name: 'Wieszak ścienny', category: 'Dekoracje i dodatki' },
+    { name: 'Wieszak stojący', category: 'Dekoracje i dodatki' },
+    { name: 'Parawan dekoracyjny', category: 'Dekoracje i dodatki' },
+    { name: 'Organizer na biżuterię', category: 'Dekoracje i dodatki' },
+    { name: 'Organizer na buty', category: 'Dekoracje i dodatki' },
+    { name: 'Skrzynia na pościel', category: 'Dekoracje i dodatki' },
+    { name: 'Pufa do przechowywania', category: 'Dekoracje i dodatki' },
+
+    // Kuchnia i łazienka
+    { name: 'Blat kuchenny (widoczny)', category: 'Kuchnia i łazienka' },
+    { name: 'Blat łazienkowy (widoczny)', category: 'Kuchnia i łazienka' },
+    { name: 'Fronty szafek kuchennych', category: 'Kuchnia i łazienka' },
+    { name: 'Fronty szafek łazienkowych', category: 'Kuchnia i łazienka' },
+    { name: 'Umywalka nablatowa', category: 'Kuchnia i łazienka' },
+    { name: 'Umywalka wpuszczana', category: 'Kuchnia i łazienka' },
+    { name: 'Wanna wolnostojąca', category: 'Kuchnia i łazienka' },
+    { name: 'Wanna zabudowana', category: 'Kuchnia i łazienka' },
+    { name: 'Prysznic walk-in', category: 'Kuchnia i łazienka' },
+    { name: 'Kabina prysznicowa', category: 'Kuchnia i łazienka' },
+    { name: 'Bateria umywalkowa (widoczna)', category: 'Kuchnia i łazienka' },
+    { name: 'Bateria wannowa (widoczna)', category: 'Kuchnia i łazienka' },
+    { name: 'Bateria prysznicowa (widoczna)', category: 'Kuchnia i łazienka' },
+    { name: 'Zlewozmywak kuchenny', category: 'Kuchnia i łazienka' },
+    { name: 'Zlewozmywak jednokomorowy', category: 'Kuchnia i łazienka' },
+    { name: 'Zlewozmywak dwukomorowy', category: 'Kuchnia i łazienka' },
+    { name: 'Szafki wiszące kuchenne', category: 'Kuchnia i łazienka' },
+    { name: 'Szafki podblatowe kuchenne', category: 'Kuchnia i łazienka' },
+    { name: 'Okap kuchenny (widoczny)', category: 'Kuchnia i łazienka' },
+    { name: 'Płytki ścienne kuchenne', category: 'Kuchnia i łazienka' },
+    { name: 'Płytki ścienne łazienkowe', category: 'Kuchnia i łazienka' },
+    { name: 'Płytki podłogowe kuchenne', category: 'Kuchnia i łazienka' },
+    { name: 'Płytki podłogowe łazienkowe', category: 'Kuchnia i łazienka' },
+    { name: 'Lustro łazienkowe', category: 'Kuchnia i łazienka' },
+    { name: 'Grzejnik łazienkowy (dekoracyjny, drabinkowy)', category: 'Kuchnia i łazienka' },
+
+    // Technologie i funkcje (widoczne elementy)
+    { name: 'Gniazdko elektryczne', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Gniazdko z USB', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Panel sterowania ogrzewaniem', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Wideodomofon', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Zasłony automatyczne', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Czujnik ruchu', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'System alarmowy', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Zamek elektroniczny', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Stacja ładowania', category: 'Technologie i funkcje (widoczne elementy)' },
+    { name: 'Głośniki w suficie', category: 'Technologie i funkcje (widoczne elementy)' },
+
+    // Rośliny i ogrody
+    { name: 'Roślina doniczkowa duża', category: 'Rośliny i ogrody' },
+    { name: 'Roślina doniczkowa mała', category: 'Rośliny i ogrody' },
+    { name: 'Ogród wertykalny (na ścianie)', category: 'Rośliny i ogrody' },
+    { name: 'Kwiaty cięte w wazonie', category: 'Rośliny i ogrody' },
+    { name: 'Bonsai', category: 'Rośliny i ogrody' },
+    { name: 'Sukulent', category: 'Rośliny i ogrody' },
+    { name: 'Palma domowa', category: 'Rośliny i ogrody' },
+    { name: 'Paproć', category: 'Rośliny i ogrody' },
+    { name: 'Zioła w kuchni', category: 'Rośliny i ogrody' },
+    { name: 'Trawy ozdobne', category: 'Rośliny i ogrody' },
+
+    // Inne
+    { name: 'Kominek tradycyjny', category: 'Inne' },
+    { name: 'Kominek elektryczny', category: 'Inne' },
+    { name: 'Biokominek', category: 'Inne' }
+  ];
+
+  const createdDetails: any[] = [];
+  for (const detail of detailsData) {
+    const createdDetail = await prisma.detail.create({
+      data: {
+        name: detail.name,
+        category: detail.category,
+        imageUrl: '/images/details/placeholder.jpg', // Placeholder for now
+      }
+    });
+    createdDetails.push(createdDetail);
+  }
+  console.log(`✅ Dodano ${createdDetails.length} detali.`);
+
+  // 6. Add sample style images with tags for key styles
+  const sampleStyleImages = [
+    {
+      styleName: 'Skandynawski',
+      images: [
+        { 
+          url: '/images/styles/scandinavian/salon1.jpg', 
+          room: 'Salon',
+          tags: [
+            { detailName: 'Sofa', x: 20, y: 40, width: 25, height: 20 },
+            { detailName: 'Lampa podłogowa', x: 10, y: 20, width: 8, height: 15 },
+            { detailName: 'Dywan duży', x: 15, y: 60, width: 35, height: 25 }
+          ]
+        },
+        { 
+          url: '/images/styles/scandinavian/kuchnia1.jpg', 
+          room: 'Kuchnia',
+          tags: [
+            { detailName: 'Fronty szafek kuchennych', x: 0, y: 20, width: 40, height: 60 },
+            { detailName: 'Blat kuchenny (widoczny)', x: 0, y: 65, width: 80, height: 15 },
+            { detailName: 'Lampa wisząca centralna', x: 35, y: 5, width: 12, height: 10 }
+          ]
+        }
+      ]
+    },
+    {
+      styleName: 'Industrialny',
+      images: [
+        { 
+          url: '/images/styles/industrial/salon1.jpg', 
+          room: 'Salon',
+          tags: [
+            { detailName: 'Ściana z cegły', x: 0, y: 0, width: 50, height: 80 },
+            { detailName: 'Lampa wisząca centralna', x: 30, y: 10, width: 15, height: 12 },
+            { detailName: 'Stół kawowy', x: 40, y: 60, width: 20, height: 15 }
+          ]
+        }
+      ]
+    },
+    {
+      styleName: 'Boho',
+      images: [
+        { 
+          url: '/images/styles/boho/salon1.jpg', 
+          room: 'Salon',
+          tags: [
+            { detailName: 'Makrama na ścianę', x: 60, y: 20, width: 15, height: 20 },
+            { detailName: 'Poduszki dekoracyjne', x: 20, y: 50, width: 25, height: 15 },
+            { detailName: 'Roślina doniczkowa duża', x: 80, y: 40, width: 12, height: 25 }
+          ]
+        }
+      ]
+    },
+    {
+      styleName: 'Minimalistyczny',
+      images: [
+        { 
+          url: '/images/styles/minimalist/salon1.jpg', 
+          room: 'Salon',
+          tags: [
+            { detailName: 'Ściana malowana jednolicie', x: 0, y: 0, width: 100, height: 100 },
+            { detailName: 'Sofa', x: 30, y: 50, width: 40, height: 25 },
+            { detailName: 'Stolik kawowy', x: 40, y: 70, width: 20, height: 10 }
+          ]
+        }
+      ]
+    }
+  ];
+
+  for (const styleData of sampleStyleImages) {
+    const style = createdStyles.find(s => s.name === styleData.styleName);
+    if (!style) continue;
+
+    for (const imageData of styleData.images) {
+      const styleImage = await prisma.styleImage.create({
+        data: {
+          url: imageData.url,
+          room: imageData.room,
+          styleId: style.id,
+        }
+      });
+
+      // Add tags for this image
+      for (const tagData of imageData.tags) {
+        const detail = createdDetails.find(d => d.name === tagData.detailName);
+        if (!detail) continue;
+
+        await prisma.imageTag.create({
+          data: {
+            styleImageId: styleImage.id,
+            detailId: detail.id,
+            x: tagData.x,
+            y: tagData.y,
+            width: tagData.width,
+            height: tagData.height,
+          }
+        });
+      }
+    }
+  }
+  console.log(`✅ Dodano przykładowe obrazy stylów z tagami.`);
+
   console.log('\n🎉 Seedowanie zakończone pomyślnie!');
 }
 

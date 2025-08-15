@@ -44,6 +44,8 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   const [finishReason, setFinishReason] = useState<FinishReason | null>(null);
   const [clickCoords, setClickCoords] = useState<{x: number, y: number} | null>(null);
   const [detailStats, setDetailStats] = useState<Record<string, { score: number }>>({});
+  const [swipeStartTime, setSwipeStartTime] = useState<number | null>(null);
+  const [decisionChanges, setDecisionChanges] = useState<Record<string, number>>({});
 
   const currentIndexRef = useRef(0);
   const canSwipe = useRef(true);
@@ -175,6 +177,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
       });
       setDeck(initialDeck);
       currentIndexRef.current = initialDeck.length - 1;
+      setSwipeStartTime(Date.now()); // Start timing for first card
     });
 
     fetch('/api/quiz/session', {
@@ -187,7 +190,19 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   const swiped = (direction: 'left' | 'right', card: DeckCard) => {
     if (!canSwipe.current) return;
     canSwipe.current = false;
+    
     const { style, image } = card;
+    const reactionTime = swipeStartTime ? Date.now() - swipeStartTime : null;
+    
+    // Track decision changes for behavioral analytics
+    const styleKey = style.id;
+    if (stats[style.name]?.shownCount > 0) {
+      setDecisionChanges(prev => ({
+        ...prev,
+        [styleKey]: (prev[styleKey] || 0) + 1
+      }));
+    }
+
     let styleScoreChange = 0;
     let likeChange = 0;
     let detailScoreChange = 0;
@@ -202,6 +217,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
       detailScoreChange = -1;
       setConsecutiveLeftSwipes(prev => prev + 1);
     }
+    
     setStats(prev => ({
         ...prev,
         [style.name]: {
@@ -222,6 +238,7 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
     });
 
     setTotalSwipes(prev => prev + 1);
+    
     if (sessionId) {
       fetch('/api/quiz/style-score', {
         method: 'POST',
@@ -233,10 +250,16 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
           styleScoreChange,
           detailScoreChange,
           detailIds,
+          interactionType: 'swipe',
+          reactionTime,
+          isDecisionChange: (decisionChanges[styleKey] || 0) > 0
         }),
       });
     }
+    
     currentIndexRef.current -= 1;
+    setSwipeStartTime(Date.now()); // Reset for next card
+    
     if (currentIndexRef.current < 0) {
         composeNextDeck();
     } else {

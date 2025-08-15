@@ -171,7 +171,11 @@ export default function Quiz1Page() {
     }
   }
 
-  const handleMaterialSelectionFinish = () => setStep("results");
+  const handleMaterialSelectionFinish = (materialScores: Record<string, number>) => {
+    // Store material scores and continue to results
+    updateUserState(setDetailScores, materialScores);
+    setStep("results");
+  };
   const handleNextTurn = () => setStep(nextStepAfterHandover);
 
   const handleDownloadPdf = () => {
@@ -247,7 +251,11 @@ export default function Quiz1Page() {
         case "narrow-down": return <NarrowDownRound topStyles={currentTopStyles} onFinish={handleNarrowDownFinish} selectedRooms={selectedRooms} />;
         case "details-round": return <DetailsRound winningStyles={getWinningStyles()} selectedRooms={selectedRooms} onFinish={handleDetailsFinish} />;
         case "playoff-round": return playoffReason && <PlayoffRound reason={playoffReason} styles={allStyles} onFinish={handlePlayoffFinish} />;
-        case "material-selection": return <MaterialSelection onFinish={handleMaterialSelectionFinish} />;
+        case "material-selection": 
+          return <MaterialSelection 
+            onFinish={handleMaterialSelectionFinish} 
+            emergencyMode={true}
+          />;
         case "results":
             return (
                 <Card>
