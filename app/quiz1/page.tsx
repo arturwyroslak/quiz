@@ -10,6 +10,7 @@ import { PlayoffRound, PlayoffReason, PlayoffScores } from "@/components/quiz/pl
 import { ModeSelection, QuizMode } from "@/components/quiz/mode-selection"
 import { HandoverScreen } from "@/components/quiz/handover-screen"
 import { ComparisonResults } from "@/components/quiz/comparison-results"
+import { QuizInsightsPanel } from "@/components/quiz/quiz-insights-panel"
 import { Quiz, Style } from '@prisma/client'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -39,6 +40,16 @@ export default function Quiz1Page() {
   const [allStyles, setAllStyles] = useState<Style[]>([])
   const [allDetails, setAllDetails] = useState<Detail[]>([])
   const [progress, setProgress] = useState(0);
+  const [quizInsights, setQuizInsights] = useState({
+    totalSwipes: 0,
+    likedCount: 0,
+    rejectedStyles: 0,
+    averageReactionTime: 0,
+    decisionChanges: 0,
+    confidenceLevel: 'medium' as 'high' | 'medium' | 'low',
+    dominantCategories: [] as string[],
+    sessionDuration: 0
+  });
 
   useEffect(() => {
     fetch('/api/quiz').then(res => res.json()).then(q => setStyleQuiz(q.find((qz: Quiz) => qz.type === 'STYLE') || null));
@@ -88,6 +99,10 @@ export default function Quiz1Page() {
     } else {
       setter(prev => ({ ...(prev as PairState<T>), [currentUser]: value }));
     }
+  };
+
+  const updateInsights = (newData: Partial<typeof quizInsights>) => {
+    setQuizInsights(prev => ({ ...prev, ...newData }));
   };
 
   const handleStyleSwipeFinish = (round1Scores: Record<string, number>, reason: FinishReason) => {
@@ -449,7 +464,16 @@ export default function Quiz1Page() {
                     </div>
                 )}
 
-                <main>
+                <main className="space-y-6">
+                    {/* Show insights panel during active quiz steps */}
+                    {['style-swipe', 'narrow-down', 'details-round'].includes(step) && quizInsights.totalSwipes > 0 && (
+                        <QuizInsightsPanel 
+                            insights={quizInsights}
+                            currentStep={step}
+                            totalSteps={QUIZ_STEPS_COUNT}
+                        />
+                    )}
+                    
                     {renderStep()}
                 </main>
             </div>
