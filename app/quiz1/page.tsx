@@ -180,46 +180,186 @@ export default function Quiz1Page() {
 
   const handleDownloadPdf = () => {
     const doc = new jsPDF();
-    doc.setFontSize(22);
-    doc.text("Raport Waszego Stylu", 105, 20, { align: 'center' });
+    
+    // Enhanced PDF header
+    doc.setFontSize(24);
+    doc.text("Raport Waszego Stylu ARTScore", 105, 20, { align: 'center' });
     doc.setFontSize(12);
-    doc.text("Wygenerowano przez ARTSCore Quiz", 105, 30, { align: 'center' });
+    doc.text(`Wygenerowano: ${new Date().toLocaleDateString('pl-PL')}`, 105, 30, { align: 'center' });
+    
+    let currentY = 50;
 
     if (quizMode === 'single') {
         const finalScores = scores as Record<string, number>;
         const finalDetailScores = detailScores as Record<string, number>;
-        autoTable(doc, { head: [['Twoje Główne Style']], startY: 40, theme: 'plain' });
+        
+        // Top styles section
+        doc.setFontSize(16);
+        doc.text("Twoje Dominujące Style", 20, currentY);
+        currentY += 10;
+        
+        const topStyles = Object.entries(finalScores)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 3)
+          .map(([name, score]) => {
+            const style = allStyles.find(s => s.name === name);
+            return [name, score.toString(), style?.description || ''];
+          });
+          
+        autoTable(doc, { 
+          head: [['Styl', 'Punkty', 'Opis']], 
+          body: topStyles,
+          startY: currentY,
+          theme: 'striped',
+          headStyles: { fillColor: [179, 138, 52] }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+        
+        // Liked details section
+        doc.setFontSize(16);
+        doc.text("Twoje Ulubione Detale", 20, currentY);
+        currentY += 10;
+        
+        const likedDetails = Object.entries(finalDetailScores)
+          .filter(([, score]) => score > 0)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 10)
+          .map(([id, score]) => {
+            const detail = allDetails.find(d => d.id === id);
+            return [detail?.name || 'Nieznany', detail?.category || '', score.toString()];
+          });
+          
+        if (likedDetails.length > 0) {
+          autoTable(doc, { 
+            head: [['Element', 'Kategoria', 'Punkty']], 
+            body: likedDetails,
+            startY: currentY,
+            theme: 'grid',
+            headStyles: { fillColor: [179, 138, 52] }
+          });
+          currentY = (doc as any).lastAutoTable.finalY + 15;
+        }
+        
+        // Recommendations section
+        doc.setFontSize(16);
+        doc.text("Rekomendacje", 20, currentY);
+        currentY += 10;
+        
+        const topStyleNames = topStyles.map(([name]) => name);
+        let recommendations = [];
+        
+        if (topStyleNames.includes('Skandynawski')) {
+          recommendations.push(['• Postaw na jasne drewno i naturalne materiały']);
+          recommendations.push(['• Wybierz funkcjonalne meble o prostych formach']);
+          recommendations.push(['• Wykorzystaj dużo białego koloru i subtelne akcenty']);
+        }
+        
+        if (topStyleNames.includes('Industrialny')) {
+          recommendations.push(['• Połącz surowe materiały: beton, metal, cegłę']);
+          recommendations.push(['• Wybierz meble o prostych, geometrycznych formach']);
+          recommendations.push(['• Zostaw niektóre instalacje widoczne jako dekorację']);
+        }
+        
+        if (recommendations.length === 0) {
+          recommendations.push(['• Skonsultuj się z projektantem w celu doprecyzowania stylu']);
+          recommendations.push(['• Rozważ powtórzenie quizu po głębszym przemyśleniu preferencji']);
+        }
+        
+        autoTable(doc, { 
+          body: recommendations,
+          startY: currentY,
+          theme: 'plain',
+          styles: { fontSize: 11 }
+        });
+        
     } else {
+        // Pair mode analysis
         const pairScores = scores as PairState<Record<string, number>>;
         const pairDetailScores = detailScores as PairState<Record<string, number>>;
-        const getTopStyles = (user: User) => Object.entries(pairScores[user]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n])=>allStyles.find(s=>s.name===n)).filter((s):s is Style=>!!s);
+        
+        const getTopStyles = (user: User) => 
+          Object.entries(pairScores[user])
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3)
+            .map(([name]) => allStyles.find(s => s.name === name))
+            .filter((s): s is any => !!s);
+            
         const topStyles1 = getTopStyles('user1');
         const topStyles2 = getTopStyles('user2');
         const sharedStyles = topStyles1.filter(s1 => topStyles2.some(s2 => s2.id === s1.id));
         const uniqueStyles1 = topStyles1.filter(s1 => !topStyles2.some(s2 => s2.id === s1.id));
         const uniqueStyles2 = topStyles2.filter(s1 => !topStyles1.some(s2 => s2.id === s1.id));
-        const getLikedDetails = (user: User) => Object.keys(pairDetailScores[user]).filter(id => pairDetailScores[user][id] > 0);
-        const likedD1 = new Set(getLikedDetails('user1'));
-        const likedD2 = new Set(getLikedDetails('user2'));
-        const sharedLikedDetails = allDetails.filter(d => likedD1.has(d.id) && likedD2.has(d.id));
-
-        let lastY = 40;
-
-        autoTable(doc, { head: [['Wspólne Odkrycia']], startY: lastY, theme: 'plain', styles: { fontSize: 18 }});
-        lastY = (doc as any).lastAutoTable.finalY + 5;
+        
+        // Shared discoveries
+        doc.setFontSize(18);
+        doc.text("Wspólne Odkrycia", 20, currentY);
+        currentY += 15;
+        
         if (sharedStyles.length > 0) {
-            autoTable(doc, { head: [['Wspólne style']], body: sharedStyles.map(s => [s.name]), startY: lastY });
-            lastY = (doc as any).lastAutoTable.finalY + 5;
+          doc.setFontSize(14);
+          doc.text("Wspólne style:", 20, currentY);
+          currentY += 10;
+          autoTable(doc, { 
+            body: sharedStyles.map(s => [s.name, s.description || '']),
+            startY: currentY,
+            theme: 'striped',
+            headStyles: { fillColor: [179, 138, 52] }
+          });
+          currentY = (doc as any).lastAutoTable.finalY + 10;
         }
-        if (sharedLikedDetails.length > 0) {
-            autoTable(doc, { head: [['Wspólne detale']], body: sharedLikedDetails.map(d => [d.name]), startY: lastY });
-            lastY = (doc as any).lastAutoTable.finalY + 5;
+        
+        // Individual preferences
+        doc.setFontSize(18);
+        doc.text("Wasze Indywidualne Preferencje", 20, currentY);
+        currentY += 15;
+        
+        // User 1 styles
+        if (uniqueStyles1.length > 0) {
+          doc.setFontSize(14);
+          doc.text("Osoba 1:", 20, currentY);
+          currentY += 10;
+          autoTable(doc, { 
+            body: uniqueStyles1.map(s => [s.name]),
+            startY: currentY,
+            theme: 'grid'
+          });
+          currentY = (doc as any).lastAutoTable.finalY + 10;
         }
-
-        autoTable(doc, { head: [['Wasze Indywidualne Preferencje']], startY: lastY + 10, theme: 'plain', styles: { fontSize: 18 }});
-        lastY = (doc as any).lastAutoTable.finalY + 5;
-        autoTable(doc, { head: [['Gracz 1']], body: uniqueStyles1.map(s => [s.name]), startY: lastY });
-        autoTable(doc, { head: [['Gracz 2']], body: uniqueStyles2.map(s => [s.name]), startY: lastY, margin: { left: 105 } });
+        
+        // User 2 styles  
+        if (uniqueStyles2.length > 0) {
+          doc.setFontSize(14);
+          doc.text("Osoba 2:", 20, currentY);
+          currentY += 10;
+          autoTable(doc, { 
+            body: uniqueStyles2.map(s => [s.name]),
+            startY: currentY,
+            theme: 'grid'
+          });
+          currentY = (doc as any).lastAutoTable.finalY + 10;
+        }
+        
+        // Compromise recommendations
+        if (currentY < 250) { // Check if there's space
+          doc.setFontSize(16);
+          doc.text("Rekomendacje Kompromisowe", 20, currentY);
+          currentY += 10;
+          
+          let compromiseRecs = [];
+          if (sharedStyles.length > 0) {
+            compromiseRecs.push(['• Skupcie się na wspólnych elementach stylu']);
+            compromiseRecs.push(['• Podzielcie przestrzenie według indywidualnych preferencji']);
+          } else {
+            compromiseRecs.push(['• Rozważcie style przejściowe łączące wasze preferencje']);
+            compromiseRecs.push(['• Skonsultujcie się z projektantem specjalizującym się w kompromisach']);
+          }
+          
+          autoTable(doc, { 
+            body: compromiseRecs,
+            startY: currentY,
+            theme: 'plain'
+          });
+        }
     }
 
     doc.save("raport-stylu-artscore.pdf");

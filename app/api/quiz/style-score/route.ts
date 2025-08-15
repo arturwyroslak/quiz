@@ -74,28 +74,42 @@ export async function POST(request: Request) {
     }
 
     // Track behavioral analytics if provided
-    const analyticsData = {
-      sessionId,
-      styleId,
-      imageId,
-      interactionType: interactionType || 'swipe',
-      reactionTime: reactionTime || null,
-      isDecisionChange,
-      timestamp: new Date(),
-    };
-
-    // TODO: Store analytics data for advanced reporting
-    // This could be added to a separate analytics table
+    const analyticsPromise = reactionTime || isDecisionChange ? 
+      prisma.quizAnalytics.create({
+        data: {
+          sessionId,
+          styleId,
+          imageId,
+          interactionType: interactionType || 'swipe',
+          reactionTime,
+          isDecisionChange,
+          metadata: {
+            detailIds,
+            styleScoreChange,
+            detailScoreChange
+          }
+        }
+      }) : Promise.resolve(null);
 
     const [styleScore, ...detailScores] = await prisma.$transaction([
       styleScorePromise,
       ...detailScorePromises,
-    ])
+    ]);
+
+    // Store analytics separately to avoid transaction issues
+    let analyticsData = null;
+    if (reactionTime || isDecisionChange) {
+      try {
+        analyticsData = await analyticsPromise;
+      } catch (error) {
+        console.warn('Failed to store analytics data:', error);
+      }
+    }
 
     return NextResponse.json({ 
       styleScore, 
       detailScores,
-      analyticsTracked: !!reactionTime
+      analyticsTracked: !!analyticsData
     })
   } catch (error) {
     console.error('Error saving style score:', error)

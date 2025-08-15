@@ -7,6 +7,7 @@ import { styleClusters } from '@/lib/quiz/style-clusters'
 import { CommentModal, CommentSentiment } from './comment-modal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from '@/components/ui/textarea'
+import { Textarea } from '@/components/ui/textarea'
 import { X, Heart, MessageSquare, Ban } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -38,7 +39,9 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
   const [consecutiveLeftSwipes, setConsecutiveLeftSwipes] = useState(0);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showPoolTooSmallModal, setShowPoolTooSmallModal] = useState(false);
+  const [showUncertaintyModal, setShowUncertaintyModal] = useState(false);
   const [userPreferenceText, setUserPreferenceText] = useState("");
+  const [emergencyType, setEmergencyType] = useState<'no_positive' | 'too_uncertain' | 'pool_small'>('no_positive');
   const [totalSwipes, setTotalSwipes] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [finishReason, setFinishReason] = useState<FinishReason | null>(null);
@@ -123,17 +126,40 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
         setIsFinished(true);
         return;
     }
+
+    // Enhanced stop conditions based on documentation
     const sortedByLikes = Object.entries(stats).sort(([, a], [, b]) => b.likedCount - a.likedCount);
+    
     if (sortedByLikes.length < 4) return;
+    
     const top3 = sortedByLikes.slice(0, 3);
     const fourth = sortedByLikes[3];
+    
+    // All top 3 styles must have at least 4 likes
     const allTop3HaveEnoughLikes = top3.every(([, s]) => s.likedCount >= 4);
+    
+    // Each of top 3 must have at least 2 likes more than 4th place
     const hasEnoughLead = top3.every(([, s]) => s.likedCount >= fourth[1].likedCount + 2);
-    if (allTop3HaveEnoughLikes && hasEnoughLead) {
+    
+    // Additional condition: check for uncertainty patterns
+    const totalDecisionChanges = Object.values(decisionChanges).reduce((sum, count) => sum + count, 0);
+    const avgChangesPerStyle = totalDecisionChanges / Math.max(Object.keys(decisionChanges).length, 1);
+    
+    // If user is very uncertain (many decision changes), continue longer
+    const isVeryUncertain = avgChangesPerStyle > 2;
+    
+    if (allTop3HaveEnoughLikes && hasEnoughLead && !isVeryUncertain) {
         setFinishReason('condition_met');
         setIsFinished(true);
     }
-  }, [stats, totalSwipes]);
+    
+    // Emergency exit if user rejects too many styles
+    const rejectionRate = rejectedStyles.length / allStyles.length;
+    if (rejectionRate > 0.7 && totalSwipes > 20) {
+        setFinishReason('limit_reached');
+        setIsFinished(true);
+    }
+  }, [stats, totalSwipes, decisionChanges, rejectedStyles.length, allStyles.length]);
 
   useEffect(() => {
     fetch('/api/quiz/styles').then(res => res.json()).then((data: Style[]) => {
@@ -269,16 +295,29 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
 
   useEffect(() => {
     if (isFinished) return;
+    
     checkStopCondition();
+    
+    // Check for emergency scenarios per documentation
     if (consecutiveLeftSwipes >= 10) {
+        setEmergencyType('no_positive');
         setShowEmergencyModal(true);
         setConsecutiveLeftSwipes(0);
     }
-  }, [stats, consecutiveLeftSwipes, checkStopCondition, isFinished]);
+    
+    // Check for uncertainty patterns
+    const totalDecisionChanges = Object.values(decisionChanges).reduce((sum, count) => sum + count, 0);
+    if (totalDecisionChanges > 8 && totalSwipes > 15) {
+        setEmergencyType('too_uncertain');
+        setShowUncertaintyModal(true);
+    }
+  }, [stats, consecutiveLeftSwipes, checkStopCondition, isFinished, decisionChanges, totalSwipes]);
 
   useEffect(() => {
-    if (allStyles.length > 0 && rejectedStyles.length / allStyles.length > 0.5) {
+    const rejectionRate = allStyles.length > 0 ? rejectedStyles.length / allStyles.length : 0;
+    if (rejectionRate > 0.5) {
         if (!showPoolTooSmallModal) {
+            setEmergencyType('pool_small');
             setShowPoolTooSmallModal(true);
         }
     }
@@ -384,11 +423,86 @@ export function StyleSwipe({ onFinish, quizId, selectedRooms }: StyleSwipeProps)
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={showUncertaintyModal} onOpenChange={setShowUncertaintyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-heading-semibold">Widzimy, że się wahasz</DialogTitle>
+            <DialogDescription className="font-body-regular">
+              Zmieniłeś już kilka decyzji. To normalne! Może pomożemy Ci doprecyzować preferencje?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Wybierz jedną z opcji, która najbardziej Ci odpowiada:
+            </p>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                onClick={() => {
+                  setShowUncertaintyModal(false);
+                  // Continue with current approach
+                }}
+              >
+                Kontynuuj wybieranie - chcę zobaczyć więcej inspiracji
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => {
+                  setShowUncertaintyModal(false);
+                  setFinishReason('limit_reached');
+                  setIsFinished(true);
+                }}
+              >
+                Przejdź do wyboru materiałów - może to będzie łatwiejsze
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowUncertaintyModal(false)} className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">
+              Zamknij
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Dialog open={showEmergencyModal} onOpenChange={setShowEmergencyModal}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="font-heading-semibold">Nie trafiamy w Twój gust?</DialogTitle></DialogHeader>
-          <p className="font-body-regular">Wygląda na to, że odrzuciłeś wiele propozycji. Spróbuj opisać co lubisz w komentarzach lub odrzuć całe style, które Ci nie pasują.</p>
-          <DialogFooter><Button onClick={() => setShowEmergencyModal(false)} className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">Kontynuuj</Button></DialogFooter>
+          <DialogHeader>
+            <DialogTitle className="font-heading-semibold">
+              {emergencyType === 'no_positive' ? 'Nie trafiamy w Twój gust?' : 'Potrzebujesz pomocy?'}
+            </DialogTitle>
+            <DialogDescription className="font-body-regular">
+              {emergencyType === 'no_positive' 
+                ? 'Wygląda na to, że odrzuciłeś wiele propozycji. Spróbuj opisać co lubisz w komentarzach lub odrzuć całe style, które Ci nie pasują.'
+                : 'Widzimy, że masz trudności z wyborem. Możemy Ci pomóc!'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {emergencyType === 'no_positive' && (
+              <>
+                <p className="text-sm text-gray-600">Możesz:</p>
+                <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                  <li>Kliknąć w szczegóły zdjęć i skomentować co Ci się podoba</li>
+                  <li>Użyć przycisku "Odrzuć styl" dla całych stylów</li>
+                  <li>Opisać swoje preferencje poniżej</li>
+                </ul>
+                <Textarea
+                  value={userPreferenceText}
+                  onChange={(e) => setUserPreferenceText(e.target.value)}
+                  placeholder="Opisz, czego szukasz... np. 'lubię jasne wnętrza z drewnem'"
+                  className="font-body-regular"
+                />
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowEmergencyModal(false)} className="bg-gradient-to-r from-[#b38a34] to-[#9a7529] text-white">
+              Kontynuuj
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
